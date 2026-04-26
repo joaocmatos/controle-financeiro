@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle Financeiro Familiar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f6fdf9;color:#2C2C2A;line-height:1.6}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+header{background:#085041;color:#E1F5EE;padding:20px;border-radius:12px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+header h1{font-size:22px;font-weight:700}
+.header-actions{display:flex;gap:12px;align-items:center}
+.btn-change{background:rgba(255,255,255,0.15);color:#E1F5EE;border:0.5px solid rgba(255,255,255,0.3);padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+.btn-change:hover{background:rgba(255,255,255,0.25)}
+.nav-tabs{display:flex;gap:8px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px}
+.nav-tab{background:#fff;border:0.5px solid #9FE1CB;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;color:#0F6E56;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.nav-tab:hover{background:#E1F5EE}
+.nav-tab.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.page{display:none}
+.page.active{display:block}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:#E1F5EE;border-radius:12px;padding:20px;text-align:center;border:0.5px solid #9FE1CB;position:relative;overflow:hidden}
+.kpi-card.despesas{background:#FCEBEB;border-color:#F09595}
+.kpi-card.poupanca{background:#FAEEDA;border-color:#EF9F27}
+.kpi-label{font-size:11px;letter-spacing:0.05em;font-weight:500;color:#0F6E56;margin-bottom:8px;text-transform:uppercase}
+.kpi-card.despesas .kpi-label{color:#791F1F}
+.kpi-card.poupanca .kpi-label{color:#633806}
+.kpi-value{font-size:28px;font-weight:700;color:#085041;font-family:'Space Mono',monospace}
+.kpi-card.despesas .kpi-value{color:#791F1F}
+.kpi-card.poupanca .kpi-value{color:#633806}
+.kpi-subtitle{font-size:11px;color:#0F6E56;margin-top:6px;opacity:0.8}
+.filters{background:#fff;border:0.5px solid #9FE1CB;border-radius:12px;padding:16px;margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filter-label{font-size:12px;font-weight:500;color:#085041}
+select{padding:8px 12px;border:0.5px solid #9FE1CB;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;color:#2C2C2A;cursor:pointer}
+select:focus{outline:2px solid #1D9E75;outline-offset:2px}
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:#fff;border:0.5px solid #9FE1CB;border-radius:12px;padding:20px;height:300px}
+.chart-card canvas{max-height:240px!important}
+.chart-title{font-size:14px;font-weight:700;color:#085041;margin-bottom:16px}
+.alert-box{background:#FCEBEB;border:0.5px solid #E24B4A;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start}
+.alert-icon{font-size:20px;flex-shrink:0}
+.alert-title{font-size:13px;font-weight:700;color:#791F1F;margin-bottom:4px}
+.alert-text{font-size:12px;color:#791F1F;line-height:1.6}
+.tip-box{background:#E1F5EE;border:0.5px solid #5DCAA5;border-radius:8px;padding:14px 16px;margin-bottom:16px}
+.tip-title{font-size:13px;font-weight:700;color:#085041;margin-bottom:6px}
+.tip-text{font-size:12px;color:#0F6E56;line-height:1.6}
+.table-container{background:#fff;border:0.5px solid #9FE1CB;border-radius:12px;padding:20px;overflow-x:auto;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{background:#E1F5EE}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:500;color:#0F6E56;letter-spacing:0.03em}
+td{padding:10px 12px;border-bottom:0.5px solid #E1F5EE}
+tbody tr:nth-child(even){background:#F6FDF9}
+tbody tr:hover{background:#E1F5EE}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:500}
+.badge-pago{background:#E1F5EE;color:#085041}
+.badge-pendente{background:#FAEEDA;color:#633806}
+.badge-agendado{background:#EEEDFE;color:#3C3489}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(8,80,65,0.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:#fff;border-radius:16px;max-width:500px;width:100%;box-shadow:0 20px 60px rgba(8,80,65,0.3)}
+.modal-header{background:linear-gradient(135deg,#1D9E75 0%,#085041 100%);color:#E1F5EE;padding:24px;border-radius:16px 16px 0 0}
+.modal-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.modal-subtitle{font-size:13px;opacity:0.9}
+.modal-body{padding:24px}
+.modal-step{margin-bottom:20px}
+.modal-step-title{font-size:13px;font-weight:700;color:#085041;margin-bottom:8px}
+.modal-step-desc{font-size:12px;color:#5F5E5A;line-height:1.6;margin-bottom:10px}
+.input-group{margin-bottom:16px}
+.input-label{font-size:12px;font-weight:500;color:#085041;margin-bottom:6px;display:block}
+input[type="text"]{width:100%;padding:12px 16px;border:0.5px solid #9FE1CB;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;background:#F6FDF9}
+input[type="text"]:focus{outline:2px solid #1D9E75;outline-offset:2px;background:#fff}
+.error-message{background:#FCEBEB;color:#791F1F;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:16px}
+.btn-primary{background:#1D9E75;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;transition:all 0.2s}
+.btn-primary:hover{background:#0F6E56}
+.btn-primary:disabled{background:#9FE1CB;cursor:not-allowed}
+.help-link{text-align:center;margin-top:16px}
+.help-link a{color:#1D9E75;font-size:12px;text-decoration:none}
+.loading{text-align:center;padding:60px 20px;color:#0F6E56;font-size:14px}
+.loading-spinner{width:40px;height:40px;border:3px solid #E1F5EE;border-top-color:#1D9E75;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:60px 20px}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.3}
+.empty-title{font-size:16px;font-weight:500;color:#085041;margin-bottom:8px}
+@media(max-width:768px){.charts-grid{grid-template-columns:1fr}header{text-align:center;flex-direction:column}.filters{flex-direction:column;align-items:stretch}select{width:100%}.nav-tabs{overflow-x:scroll}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>💰 Controle Financeiro</h1>
+<div class="header-actions">
+<span id="familyName" style="font-size:14px;opacity:0.9">Carregando...</span>
+<button class="btn-change" onclick="trocarPlanilha()">⚙️ Trocar</button>
+</div>
+</header>
+
+<nav class="nav-tabs">
+<div class="nav-tab active" onclick="trocarPagina('visao-geral')">📊 Visão Geral</div>
+<div class="nav-tab" onclick="trocarPagina('analise')">🔍 Análise</div>
+<div class="nav-tab" onclick="trocarPagina('dicas')">💡 Dicas</div>
+</nav>
+
+<div id="loadingState" class="loading">
+<div class="loading-spinner"></div>
+<div style="font-weight:500;margin-bottom:8px">Carregando seus dados...</div>
+</div>
+
+<div id="errorState" style="display:none">
+<div class="alert-box">
+<div class="alert-icon">⚠️</div>
+<div>
+<div class="alert-title">Erro ao carregar</div>
+<div class="alert-text" id="errorMessage"></div>
+</div>
+</div>
+</div>
+
+<div id="mainContent" style="display:none">
+<div class="page active" id="page-visao-geral">
+<div id="alertsContainer"></div>
+<div class="kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Receitas</div>
+<div class="kpi-value" id="kpiReceitas">R$ 0</div>
+</div>
+<div class="kpi-card despesas">
+<div class="kpi-label">Despesas</div>
+<div class="kpi-value" id="kpiDespesas">R$ 0</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Saldo</div>
+<div class="kpi-value" id="kpiSaldo">R$ 0</div>
+<div class="kpi-subtitle" id="kpiSaldoStatus"></div>
+</div>
+<div class="kpi-card poupanca">
+<div class="kpi-label">Poupado</div>
+<div class="kpi-value" id="kpiPoupanca">R$ 0</div>
+</div>
+</div>
+
+<div class="filters">
+<div class="filter-label">Filtros:</div>
+<select id="filterMes"><option value="todos">Todos os meses</option></select>
+<select id="filterResponsavel"><option value="todos">Todos</option></select>
+<select id="filterCategoria"><option value="todos">Todas categorias</option></select>
+<select id="filterStatus">
+<option value="todos">Todos status</option>
+<option value="Pago">Pago</option>
+<option value="Pendente">Pendente</option>
+<option value="Agendado">Agendado</option>
+</select>
+</div>
+
+<div class="charts-grid">
+<div class="chart-card">
+<div class="chart-title">Despesas por categoria</div>
+<canvas id="chartCategorias"></canvas>
+</div>
+<div class="chart-card">
+<div class="chart-title">Gastos por pessoa</div>
+<canvas id="chartPessoa"></canvas>
+</div>
+</div>
+
+<div class="table-container">
+<div class="chart-title">Últimos lançamentos</div>
+<table>
+<thead><tr><th>Data</th><th>Responsável</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+
+<div class="page" id="page-analise">
+<div class="chart-card" style="margin-bottom:24px">
+<div class="chart-title">📉 Evolução mensal</div>
+<canvas id="chartEvolucao"></canvas>
+</div>
+<div class="chart-title" style="margin-bottom:16px">🔎 Maiores gastos do mês</div>
+<div id="topGastosContainer"></div>
+</div>
+
+<div class="page" id="page-dicas">
+<div class="chart-title" style="margin-bottom:16px">💡 Dicas personalizadas</div>
+<div id="dicasContainer"></div>
+</div>
+</div>
+</div>
+
+<div id="modalOnboarding" class="modal-overlay" style="display:none">
+<div class="modal">
+<div class="modal-header">
+<div class="modal-title">Bem-vindo!</div>
+<div class="modal-subtitle">Vamos conectar sua planilha</div>
+</div>
+<div class="modal-body">
+<div class="modal-step">
+<div class="modal-step-title">📋 Compartilhe sua planilha</div>
+<div class="modal-step-desc">Clique em <strong>"Compartilhar"</strong> e mude para <strong>"Qualquer pessoa com o link pode VER"</strong></div>
+</div>
+<div class="modal-step">
+<div class="modal-step-title">🔗 Cole o ID ou link</div>
+<div class="modal-step-desc">Pode colar o link completo</div>
+</div>
+<div class="input-group">
+<label class="input-label">ID ou link da planilha</label>
+<input type="text" id="inputPlanilhaId" placeholder="Cole aqui...">
+<div style="font-size:11px;color:#888780;margin-top:4px">Exemplo: docs.google.com/spreadsheets/d/<strong>1ABC123</strong>/edit</div>
+</div>
+<div id="modalError" class="error-message" style="display:none"></div>
+<button class="btn-primary" onclick="salvarPlanilhaId()">Salvar</button>
+<div class="help-link"><a href="#" onclick="mostrarAjuda();return false">❓ Ajuda</a></div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let allData=[],filteredData=[],charts={},sheetId=null;
+const colors={teal:'#1D9E75',tealLight:'#E1F5EE',tealDark:'#085041',red:'#E24B4A',redLight:'#FCEBEB',purple:'#7F77DD',amber:'#EF9F27',green:'#639922',blue:'#378ADD',coral:'#D85A30',pink:'#D4537E',gray:'#888780'};
+const categoryColors={Moradia:colors.coral,Alimentação:colors.green,Filhos:colors.purple,Saúde:colors.blue,Transporte:colors.amber,Assinaturas:colors.pink,Lazer:colors.teal,Vestuário:colors.red,Educação:colors.gray,Outros:'#B4B2A9'};
+
+function obterIdPlanilha(){const stored=localStorage.getItem('planilha_id');if(stored)return stored;const urlParams=new URLSearchParams(window.location.search);const urlId=urlParams.get('id');if(urlId){salvarIdLocalStorage(urlId);window.history.replaceState({},document.title,window.location.pathname);return urlId}return null}
+function salvarIdLocalStorage(id){localStorage.setItem('planilha_id',id)}
+function limparIdLocalStorage(){localStorage.removeItem('planilha_id')}
+function extrairIdDaUrl(input){input=input.trim();if(!input.includes('/')&&!input.includes('http'))return input;const match=input.match(/\/d\/([a-zA-Z0-9-_]+)/);if(match)return match[1];return input}
+async function validarIdPlanilha(id){let csvUrl;if(id.startsWith('2PACX-')){csvUrl=`https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv`}else{csvUrl=`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=0`}try{const response=await fetch(csvUrl);return response.ok}catch(error){return false}}
+async function salvarPlanilhaId(){const input=document.getElementById('inputPlanilhaId').value;const btnSalvar=document.querySelector('.btn-primary');const modalError=document.getElementById('modalError');if(!input){modalError.textContent='Cole o ID ou link da planilha';modalError.style.display='block';return}const id=extrairIdDaUrl(input);btnSalvar.disabled=true;btnSalvar.textContent='Validando...';modalError.style.display='none';const valido=await validarIdPlanilha(id);if(!valido){modalError.innerHTML='<strong>Erro:</strong> Verifique se o ID está correto e se a planilha está compartilhada como "Qualquer pessoa com o link pode VER"';modalError.style.display='block';btnSalvar.disabled=false;btnSalvar.textContent='Salvar';return}salvarIdLocalStorage(id);sheetId=id;document.getElementById('modalOnboarding').style.display='none';init()}
+function trocarPlanilha(){limparIdLocalStorage();document.getElementById('inputPlanilhaId').value='';document.getElementById('modalError').style.display='none';document.getElementById('modalOnboarding').style.display='flex';document.getElementById('mainContent').style.display='none'}
+function mostrarAjuda(){alert('Como encontrar o ID:\n\n1. Abra sua planilha no Google Sheets\n2. Olhe a URL\n3. O ID está entre /d/ e /edit\n\nExemplo:\ndocs.google.com/spreadsheets/d/1ABC123/edit\n\nO ID é: 1ABC123')}
+function trocarPagina(pageId){document.querySelectorAll('.nav-tab').forEach(tab=>tab.classList.remove('active'));event.target.classList.add('active');document.querySelectorAll('.page').forEach(page=>page.classList.remove('active'));document.getElementById('page-'+pageId).classList.add('active');if(pageId==='analise')renderizarAnalise();else if(pageId==='dicas')renderizarDicas()}
+function parseValor(valorStr){if(!valorStr)return 0;const cleaned=valorStr.replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.');return parseFloat(cleaned)||0}
+function formatCurrency(value){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:0}).format(value)}
+function parseDate(dateStr){if(!dateStr)return null;const parts=dateStr.split('/');if(parts.length===3)return new Date(parts[2],parts[1]-1,parts[0]);return null}
+function getMonthYear(dateStr){const date=parseDate(dateStr);if(!date)return null;return `${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`}
+function getMonthName(monthYear){if(!monthYear)return '';const[month,year]=monthYear.split('/');const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return `${months[parseInt(month)-1]}/${year}`}
+async function fetchData(){let csvUrl;if(sheetId.startsWith('2PACX-')){csvUrl=`https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv`}else{csvUrl=`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`}try{const response=await fetch(csvUrl);if(!response.ok)throw new Error('Planilha não encontrada');const text=await response.text();const lines=text.split('\n');const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,''));const data=[];for(let i=1;i<lines.length;i++){if(!lines[i].trim())continue;const values=lines[i].split(',').map(v=>v.trim().replace(/"/g,''));if(values.length<headers.length)continue;const row={};headers.forEach((header,idx)=>{row[header]=values[idx]});if(row['Tipo']&&row['Valor (R$)'])data.push(row)}return data}catch(error){throw error}}
+function updateKPIs(data){const receitas=data.filter(row=>row['Tipo']==='Receita'||row['Tipo']==='Investimento').reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);const despesas=data.filter(row=>row['Tipo']==='Despesa').reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);const poupanca=data.filter(row=>row['Tipo']==='Poupança').reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);const saldo=receitas-despesas;document.getElementById('kpiReceitas').textContent=formatCurrency(receitas);document.getElementById('kpiDespesas').textContent=formatCurrency(despesas);document.getElementById('kpiSaldo').textContent=formatCurrency(saldo);document.getElementById('kpiPoupanca').textContent=formatCurrency(poupanca);const statusEl=document.getElementById('kpiSaldoStatus');if(saldo>0){statusEl.textContent='✓ Positivo';statusEl.style.color='#085041'}else if(saldo<0){statusEl.textContent='⚠ Negativo';statusEl.style.color='#791F1F'}else{statusEl.textContent='Zerado'}gerarAlertas(receitas,despesas,saldo,data)}
+function gerarAlertas(receitas,despesas,saldo,data){const container=document.getElementById('alertsContainer');container.innerHTML='';if(saldo<0){const alert=document.createElement('div');alert.className='alert-box';alert.innerHTML=`<div class="alert-icon">⚠️</div><div><div class="alert-title">Atenção: Saldo negativo!</div><div class="alert-text">Suas despesas ultrapassaram as receitas em ${formatCurrency(Math.abs(saldo))}. Veja na aba Dicas como economizar.</div></div>`;container.appendChild(alert)}const pendentes=data.filter(row=>row['Status']==='Pendente'&&row['Tipo']==='Despesa');const totalPendente=pendentes.reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);if(totalPendente>0){const alert=document.createElement('div');alert.className='alert-box';alert.style.background='#FAEEDA';alert.style.borderColor='#EF9F27';alert.innerHTML=`<div class="alert-icon">📋</div><div><div class="alert-title" style="color:#633806">Contas pendentes</div><div class="alert-text" style="color:#633806">Você tem ${formatCurrency(totalPendente)} em contas não pagas.</div></div>`;container.appendChild(alert)}}
+function createCategoriaChart(data){const despesas=data.filter(row=>row['Tipo']==='Despesa'&&row['Categoria']);const grouped={};despesas.forEach(row=>{const cat=row['Categoria'];const valor=parseValor(row['Valor (R$)']);grouped[cat]=(grouped[cat]||0)+valor});const labels=Object.keys(grouped);const values=Object.values(grouped);const bgColors=labels.map(cat=>categoryColors[cat]||colors.gray);if(charts.categorias)charts.categorias.destroy();const ctx=document.getElementById('chartCategorias').getContext('2d');charts.categorias=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{data:values,backgroundColor:bgColors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{family:'DM Sans',size:11},padding:12,usePointStyle:true}},tooltip:{callbacks:{label:function(context){const label=context.label||'';const value=formatCurrency(context.parsed);const total=context.dataset.data.reduce((a,b)=>a+b,0);const percent=((context.parsed/total)*100).toFixed(1);return `${label}: ${value} (${percent}%)`}}}}}})};}
+function createPessoaChart(data){const despesas=data.filter(row=>row['Tipo']==='Despesa'&&row['Responsável']);const grouped={};despesas.forEach(row=>{const pessoa=row['Responsável'];const valor=parseValor(row['Valor (R$)']);grouped[pessoa]=(grouped[pessoa]||0)+valor});const labels=Object.keys(grouped);const values=Object.values(grouped);const bgColors=[colors.teal,colors.blue,colors.purple,colors.amber];if(charts.pessoa)charts.pessoa.destroy();const ctx=document.getElementById('chartPessoa').getContext('2d');charts.pessoa=new Chart(ctx,{type:'pie',data:{labels:labels,datasets:[{data:values,backgroundColor:bgColors.slice(0,labels.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},padding:12,usePointStyle:true}},tooltip:{callbacks:{label:function(context){const label=context.label||'';const value=formatCurrency(context.parsed);const total=context.dataset.data.reduce((a,b)=>a+b,0);const percent=((context.parsed/total)*100).toFixed(1);return `${label}: ${value} (${percent}%)`}}}}}})};}
+function updateTable(data){const tbody=document.getElementById('tableBody');tbody.innerHTML='';const recent=data.slice(0,15);if(recent.length===0){const tr=document.createElement('tr');tr.innerHTML='<td colspan="6" class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Nenhum lançamento</div></td>';tbody.appendChild(tr);return}recent.forEach(row=>{const tr=document.createElement('tr');const statusClass=row['Status']==='Pago'?'badge-pago':row['Status']==='Pendente'?'badge-pendente':'badge-agendado';tr.innerHTML=`<td>${row['Data da compra']}</td><td>${row['Responsável']}</td><td>${row['Descrição']}</td><td>${row['Categoria']||'—'}</td><td style="font-weight:500">${formatCurrency(parseValor(row['Valor (R$)']))}</td><td><span class="badge ${statusClass}">${row['Status']}</span></td>`;tbody.appendChild(tr)})}
+function populateFilters(data){const meses=new Set();const responsaveis=new Set();const categorias=new Set();data.forEach(row=>{const monthYear=getMonthYear(row['Data da compra']);if(monthYear)meses.add(monthYear);if(row['Responsável'])responsaveis.add(row['Responsável']);if(row['Categoria'])categorias.add(row['Categoria'])});const filterMes=document.getElementById('filterMes');filterMes.innerHTML='<option value="todos">Todos os meses</option>';Array.from(meses).sort().reverse().forEach(mes=>{const option=document.createElement('option');option.value=mes;option.textContent=getMonthName(mes);filterMes.appendChild(option)});const filterResp=document.getElementById('filterResponsavel');filterResp.innerHTML='<option value="todos">Todos</option>';Array.from(responsaveis).sort().forEach(resp=>{const option=document.createElement('option');option.value=resp;option.textContent=resp;filterResp.appendChild(option)});const filterCat=document.getElementById('filterCategoria');filterCat.innerHTML='<option value="todos">Todas categorias</option>';Array.from(categorias).sort().forEach(cat=>{const option=document.createElement('option');option.value=cat;option.textContent=cat;filterCat.appendChild(option)})}
+function applyFilters(){const mes=document.getElementById('filterMes').value;const resp=document.getElementById('filterResponsavel').value;const cat=document.getElementById('filterCategoria').value;const status=document.getElementById('filterStatus').value;filteredData=allData.filter(row=>{const monthYear=getMonthYear(row['Data da compra']);if(mes!=='todos'&&monthYear!==mes)return false;if(resp!=='todos'&&row['Responsável']!==resp)return false;if(cat!=='todos'&&row['Categoria']!==cat)return false;if(status!=='todos'&&row['Status']!==status)return false;return true});updateDashboard(filteredData)}
+function updateDashboard(data){updateKPIs(data);createCategoriaChart(data);createPessoaChart(data);updateTable(data)}
+function renderizarAnalise(){createEvolucaoChart();renderTopGastos()}
+function createEvolucaoChart(){const monthlyData={};allData.forEach(row=>{const monthYear=getMonthYear(row['Data da compra']);if(!monthYear)return;if(!monthlyData[monthYear])monthlyData[monthYear]={receitas:0,despesas:0};const valor=parseValor(row['Valor (R$)']);if(row['Tipo']==='Receita'||row['Tipo']==='Investimento')monthlyData[monthYear].receitas+=valor;else if(row['Tipo']==='Despesa')monthlyData[monthYear].despesas+=valor});const months=Object.keys(monthlyData).sort().slice(-6);const receitas=months.map(m=>monthlyData[m].receitas);const despesas=months.map(m=>monthlyData[m].despesas);const labels=months.map(m=>getMonthName(m));if(charts.evolucao)charts.evolucao.destroy();const ctx=document.getElementById('chartEvolucao').getContext('2d');charts.evolucao=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Receitas',data:receitas,borderColor:colors.teal,backgroundColor:colors.tealLight,tension:0.3,fill:true},{label:'Despesas',data:despesas,borderColor:colors.red,backgroundColor:colors.redLight,tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{family:'DM Sans',size:11},usePointStyle:true}},tooltip:{callbacks:{label:function(context){return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`}}}},scales:{y:{beginAtZero:true,ticks:{callback:function(value){return formatCurrency(value)}}}}}})}
+function renderTopGastos(){const despesas=filteredData.filter(row=>row['Tipo']==='Despesa');const sorted=despesas.sort((a,b)=>parseValor(b['Valor (R$)'])-parseValor(a['Valor (R$)'])).slice(0,5);const container=document.getElementById('topGastosContainer');container.innerHTML='';sorted.forEach((row,idx)=>{const valor=parseValor(row['Valor (R$)']);const maxValor=parseValor(sorted[0]['Valor (R$)']);const percent=(valor/maxValor)*100;const card=document.createElement('div');card.className='table-container';card.style.marginBottom='12px';card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-size:13px;font-weight:700;color:#085041">${idx+1}. ${row['Descrição']}</div><div style="font-size:11px;color:#888780">${row['Categoria']} • ${row['Data da compra']}</div></div><div style="font-size:18px;font-weight:700;color:#791F1F">${formatCurrency(valor)}</div></div><div style="background:#E1F5EE;border-radius:8px;height:8px;overflow:hidden"><div style="background:#1D9E75;height:100%;width:${percent}%;border-radius:8px"></div></div>`;container.appendChild(card)})}
+function renderizarDicas(){const container=document.getElementById('dicasContainer');container.innerHTML='';const dicas=gerarDicasPersonalizadas();dicas.forEach(dica=>{const card=document.createElement('div');card.className='tip-box';card.innerHTML=`<div class="tip-title">${dica.titulo}</div><div class="tip-text">${dica.texto}</div>`;container.appendChild(card)})}
+function gerarDicasPersonalizadas(){const dicas=[];const despesas=filteredData.filter(row=>row['Tipo']==='Despesa'&&row['Categoria']);const porCategoria={};despesas.forEach(row=>{const cat=row['Categoria'];const valor=parseValor(row['Valor (R$)']);porCategoria[cat]=(porCategoria[cat]||0)+valor});const totalDespesas=Object.values(porCategoria).reduce((a,b)=>a+b,0);if(totalDespesas===0){dicas.push({titulo:'📊 Comece a registrar seus gastos',texto:'Quanto mais você registrar, melhores serão as dicas personalizadas!'});return dicas}const categoriaMax=Object.keys(porCategoria).reduce((a,b)=>porCategoria[a]>porCategoria[b]?a:b);const percentCategoria=((porCategoria[categoriaMax]/totalDespesas)*100).toFixed(0);dicas.push({titulo:`💡 ${categoriaMax} representa ${percentCategoria}% dos seus gastos`,texto:`Você gasta ${formatCurrency(porCategoria[categoriaMax])} com ${categoriaMax}. ${getDicaCategoria(categoriaMax)}`});const cartao=despesas.filter(row=>row['Forma de pagamento']==='Crédito');const totalCartao=cartao.reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);if(totalCartao>totalDespesas*0.4){dicas.push({titulo:'💳 Cuidado com o cartão de crédito',texto:`Você usou o cartão em ${formatCurrency(totalCartao)} este mês. Tente usar débito ou PIX para ter mais controle.`})}const receitas=filteredData.filter(row=>row['Tipo']==='Receita'||row['Tipo']==='Investimento').reduce((sum,row)=>sum+parseValor(row['Valor (R$)']),0);const saldo=receitas-totalDespesas;if(saldo>0){const percentSobra=((saldo/receitas)*100).toFixed(0);dicas.push({titulo:'🎯 Você está poupando!',texto:`Parabéns! Você conseguiu poupar ${percentSobra}% da sua renda (${formatCurrency(saldo)}). Em 6 meses terá ${formatCurrency(saldo*6)} de reserva.`})}else{dicas.push({titulo:'⚠️ Despesas maiores que receitas',texto:`Você gastou ${formatCurrency(Math.abs(saldo))} a mais do que ganhou. Veja na aba Análise onde está vazando dinheiro.`})}if(porCategoria['Alimentação']){const percentAlim=((porCategoria['Alimentação']/totalDespesas)*100).toFixed(0);if(percentAlim>30){dicas.push({titulo:'🍽️ Economize na alimentação',texto:`Você gasta ${percentAlim}% com alimentação. Fazer lista de compras e cozinhar em casa economiza até R$ 300/mês!`})}}dicas.push({titulo:'📊 Regra 50-30-20',texto:'Tente: 50% em necessidades (moradia, comida), 30% em desejos (lazer) e 20% em poupança. Isso equilibra sua vida financeira.'});return dicas}
+function getDicaCategoria(categoria){const dicas={Moradia:'Moradia é essencial, mas veja se consegue negociar aluguel ou reduzir água e luz.',Alimentação:'Fazer lista e cozinhar em casa reduz muito. Evite delivery toda semana.',Transporte:'Use transporte público, bike ou caronas quando possível.',Lazer:'Dá pra se divertir gastando pouco: parque, praia, filme em casa.',Filhos:'Economize comprando material em atacado ou reutilizando.',Saúde:'Veja farmácias populares ou genéricos mais baratos.',Assinaturas:'Cancele serviços que não usa.',Vestuário:'Evite compras por impulso. Compre em promoções.',Educação:'Veja se há cursos gratuitos online.',Outros:'Veja se são realmente necessários.'};return dicas[categoria]||'Procure alternativas mais baratas.'}
+async function init(){sheetId=obterIdPlanilha();if(!sheetId){document.getElementById('modalOnboarding').style.display='flex';return}try{allData=await fetchData();filteredData=allData;document.getElementById('loadingState').style.display='none';document.getElementById('mainContent').style.display='block';populateFilters(allData);updateDashboard(filteredData);document.getElementById('filterMes').addEventListener('change',applyFilters);document.getElementById('filterResponsavel').addEventListener('change',applyFilters);document.getElementById('filterCategoria').addEventListener('change',applyFilters);document.getElementById('filterStatus').addEventListener('change',applyFilters);document.getElementById('familyName').textContent='Família Silva'}catch(error){document.getElementById('loadingState').style.display='none';document.getElementById('errorState').style.display='block';document.getElementById('errorMessage').textContent=error.message}}
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
