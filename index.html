@@ -414,6 +414,124 @@ tbody tr:hover { background: var(--c-teal-50); }
 .tip-body  { font-size: 11.5px; color: var(--c-teal-700); line-height: 1.55; }
 
 /* ═══════════════════════════════════════
+   ORÇAMENTO
+═══════════════════════════════════════ */
+.orc-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+.orc-filter {
+  background: #fff;
+  border: 1px solid var(--c-teal-100);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow);
+}
+.orc-filter label { font-size: 11px; font-weight: 600; color: var(--c-teal-900); white-space: nowrap; }
+.orc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+.orc-card {
+  background: #fff;
+  border: 1px solid var(--c-teal-100);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.orc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.orc-cat-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-teal-900);
+}
+.orc-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.orc-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.orc-badge.ok   { background: var(--c-teal-50);  color: var(--c-teal-700); }
+.orc-badge.warn { background: var(--c-amb-bg);   color: var(--c-amb-txt); }
+.orc-badge.over { background: var(--c-red-bg);   color: var(--c-red-txt); }
+
+.orc-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--c-muted);
+}
+.orc-spent {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-teal-900);
+}
+.orc-spent.over { color: var(--c-red-txt); }
+.orc-meta-val { font-family: 'Space Mono', monospace; font-size: 11px; }
+
+.orc-bar-wrap {
+  height: 8px;
+  background: var(--c-teal-50);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.orc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.orc-bar-fill.ok   { background: var(--c-teal-500); }
+.orc-bar-fill.warn { background: var(--c-amb-bdr); }
+.orc-bar-fill.over { background: var(--c-red-bdr); }
+
+.orc-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--c-muted);
+}
+.orc-rest { font-weight: 600; }
+.orc-rest.pos { color: var(--c-teal-700); }
+.orc-rest.neg { color: var(--c-red-txt); }
+
+.orc-notice {
+  background: var(--c-amb-bg);
+  border: 1px solid var(--c-amb-bdr);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 12px;
+  color: var(--c-amb-txt);
+  line-height: 1.6;
+}
+.orc-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--c-muted);
+  font-size: 13px;
+}
+
+/* ═══════════════════════════════════════
    MODAL
 ═══════════════════════════════════════ */
 .overlay {
@@ -489,12 +607,14 @@ tbody tr:hover { background: var(--c-teal-50); }
    RESPONSIVE — TABLET  ≤1024px
 ═══════════════════════════════════════ */
 @media (max-width: 1024px) {
-  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
-  .an-r1     { grid-template-columns: 1fr; grid-template-rows: auto; }
-  .an-r1 .card { min-height: 280px; }
-  .an-r2     { grid-template-columns: 1fr 1fr; grid-template-rows: 260px; }
+  .kpi-strip      { grid-template-columns: repeat(2, 1fr); }
+  .an-r1          { grid-template-columns: 1fr; grid-template-rows: auto; }
+  .an-r1 .card    { min-height: 280px; }
+  .an-r2          { grid-template-columns: 1fr 1fr; grid-template-rows: 260px; }
   .an-r2 .card:last-child { grid-column: 1 / -1; grid-template-rows: auto; min-height: 240px; }
-  .dicas-grid { grid-template-columns: repeat(2,1fr); }
+  .dicas-grid     { grid-template-columns: repeat(2,1fr); }
+  .orc-kpi-strip  { grid-template-columns: repeat(3,1fr); }
+  .orc-grid       { grid-template-columns: repeat(2,1fr); }
 }
 
 /* ═══════════════════════════════════════
@@ -526,7 +646,10 @@ tbody tr:hover { background: var(--c-teal-50); }
   .an-r2 .card { min-height: 230px; }
   .an-r2 .card:last-child { grid-column: auto; min-height: 200px; }
 
-  .dicas-grid  { grid-template-columns: 1fr; }
+  .dicas-grid     { grid-template-columns: 1fr; }
+  .orc-kpi-strip  { grid-template-columns: 1fr 1fr; }
+  .orc-grid       { grid-template-columns: 1fr; }
+  .orc-filter     { flex-wrap: wrap; }
 }
 </style>
 </head>
@@ -549,6 +672,7 @@ tbody tr:hover { background: var(--c-teal-50); }
     <button class="tab active" data-page="visao-geral">📊 Visão Geral</button>
     <button class="tab" data-page="analise">🔍 Análise</button>
     <button class="tab" data-page="dicas">💡 Dicas</button>
+    <button class="tab" data-page="orcamento">📋 Orçamento</button>
   </nav>
 
   <!-- LOADING -->
@@ -679,6 +803,31 @@ tbody tr:hover { background: var(--c-teal-50); }
       <div class="dicas-grid" id="dicasGrid"></div>
     </div>
 
+    <!-- ══════════════ ORÇAMENTO ══════════════ -->
+    <div class="page" id="page-orcamento">
+
+      <!-- KPIs do orçamento -->
+      <div class="orc-kpi-strip" id="orcKpis"></div>
+
+      <!-- Seletor de mês -->
+      <div class="orc-filter">
+        <label for="fOrcMes">Mês de referência:</label>
+        <select class="filter-select" id="fOrcMes" style="max-width:180px" onchange="renderOrcamento()">
+          <option value="">Selecione o mês…</option>
+        </select>
+        <span id="orcFetchNote" style="font-size:11px;color:var(--c-muted);margin-left:4px"></span>
+      </div>
+
+      <!-- Aviso se planilha não suporta -->
+      <div id="orcNotice" class="orc-notice" style="display:none">
+        ⚠️ A aba <strong>Orçamento</strong> só pode ser lida em planilhas compartilhadas pelo link (não "Publicadas na Web"). Compartilhe sua planilha como <strong>"Qualquer pessoa com o link pode VER"</strong> e use o ID da URL.
+      </div>
+
+      <!-- Grid de categorias -->
+      <div class="orc-grid" id="orcGrid"></div>
+
+    </div><!-- /orcamento -->
+
   </div><!-- /mainContent -->
 </div><!-- /shell -->
 
@@ -714,7 +863,7 @@ tbody tr:hover { background: var(--c-teal-50); }
 'use strict';
 
 /* ── State ── */
-var allData = [], filteredData = [], charts = {}, sheetId = null;
+var allData = [], filteredData = [], orcData = [], charts = {}, sheetId = null;
 
 /* ── Color maps ── */
 var CAT_COLORS = {
@@ -1158,6 +1307,216 @@ function renderAnalise(){
   renderTopGastos();
 }
 
+/* ════════════════════════════════════════
+   ORÇAMENTO
+════════════════════════════════════════ */
+
+/* Fetch da aba Orçamento via gviz (requer planilha compartilhada por link) */
+async function fetchOrcamento() {
+  if (sheetId.startsWith('2PACX-')) return null;
+  var url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+            '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento';
+  try {
+    var resp = await fetch(url);
+    if (!resp.ok) return null;
+    var txt  = await resp.text();
+    var lines = txt.split('\n');
+    var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/"/g,''); });
+    var data = [];
+    for (var i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      var vals = lines[i].split(',').map(function(v){ return v.trim().replace(/"/g,''); });
+      if (vals.length < 2) continue;
+      var row = {};
+      headers.forEach(function(h, idx){ row[h] = vals[idx]; });
+      /* precisa ter Categoria e Meta mensal preenchidos */
+      if (row['Categoria'] && row['Meta mensal (R$)']) data.push(row);
+    }
+    return data;
+  } catch(_) { return null; }
+}
+
+/* Popular o select de meses disponíveis no orçamento */
+function populateOrcMes() {
+  var sel = document.getElementById('fOrcMes');
+  var meses = [], seen = {};
+  orcData.forEach(function(r){
+    var m = r['Mês de referência'];
+    if (m && !seen[m]) { seen[m] = 1; meses.push(m); }
+  });
+  /* ordena MM/AAAA decrescente */
+  meses.sort(function(a, b){
+    var pa = a.split('/'), pb = b.split('/');
+    var da = new Date(+pa[1], +pa[0]-1);
+    var db = new Date(+pb[1], +pb[0]-1);
+    return db - da;
+  });
+  sel.innerHTML = '<option value="">Selecione o mês…</option>';
+  meses.forEach(function(m){
+    var o = document.createElement('option');
+    o.value = m; o.textContent = myLabel(m);
+    sel.appendChild(o);
+  });
+  /* seleciona o mais recente por padrão */
+  if (meses.length) sel.value = meses[0];
+}
+
+function orcStatus(pct) {
+  if (pct >= 100) return 'over';
+  if (pct >= 80)  return 'warn';
+  return 'ok';
+}
+function orcLabel(pct) {
+  if (pct >= 100) return '✗ Estourou';
+  if (pct >= 80)  return '⚠ Atenção';
+  return '✓ Ok';
+}
+
+function renderOrcamento() {
+  var notice = document.getElementById('orcNotice');
+  var grid   = document.getElementById('orcGrid');
+  var kpis   = document.getElementById('orcKpis');
+  var note   = document.getElementById('orcFetchNote');
+  grid.innerHTML = ''; kpis.innerHTML = '';
+
+  /* Planilha publicada — sem suporte */
+  if (sheetId.startsWith('2PACX-')) {
+    notice.style.display = 'block'; return;
+  }
+  notice.style.display = 'none';
+
+  if (!orcData.length) {
+    note.textContent = '⚠ Aba "Orçamento" não encontrada na planilha.';
+    grid.innerHTML = '<div class="orc-empty">Nenhum dado de orçamento encontrado.<br>Verifique se a aba se chama exatamente <strong>Orçamento</strong> e se a coluna <strong>Mês de referência</strong> está no formato MM/AAAA.</div>';
+    return;
+  }
+  note.textContent = '';
+
+  var mesRef = document.getElementById('fOrcMes').value;
+  if (!mesRef) {
+    grid.innerHTML = '<div class="orc-empty">Selecione um mês acima para ver o orçamento.</div>';
+    return;
+  }
+
+  /* Metas do mês selecionado */
+  var metas = {};
+  orcData.filter(function(r){ return r['Mês de referência'] === mesRef; })
+         .forEach(function(r){ metas[r['Categoria']] = pv(r['Meta mensal (R$)']); });
+
+  /* Gastos reais do mesmo mês (lançamentos) */
+  var gastos = {};
+  allData.filter(function(r){
+    return r['Tipo'] === 'Despesa' && myKey(r['Data da compra']) === mesRef;
+  }).forEach(function(r){
+    var c = r['Categoria'];
+    gastos[c] = (gastos[c] || 0) + pv(r['Valor (R$)']);
+  });
+
+  /* Separa Meta de Poupança */
+  var metaPoupanca = metas['Meta de Poupança'] || 0;
+  delete metas['Meta de Poupança'];
+
+  var cats = Object.keys(metas);
+  if (!cats.length) {
+    grid.innerHTML = '<div class="orc-empty">Nenhuma meta encontrada para ' + myLabel(mesRef) + '.</div>';
+    return;
+  }
+
+  /* Totais para os KPIs */
+  var totMeta  = cats.reduce(function(s, c){ return s + metas[c]; }, 0);
+  var totGasto = cats.reduce(function(s, c){ return s + (gastos[c] || 0); }, 0);
+  var totRest  = totMeta - totGasto;
+  var totPct   = totMeta > 0 ? Math.round(totGasto / totMeta * 100) : 0;
+  var totSt    = orcStatus(totPct);
+
+  /* KPIs summary */
+  function kpiCard(label, val, sub, cls) {
+    var d = document.createElement('div');
+    d.className = 'kpi ' + (cls || '');
+    d.innerHTML = '<div class="kpi-label">' + label + '</div>' +
+                  '<div class="kpi-value">' + brl(val) + '</div>' +
+                  '<div class="kpi-meta">' + sub + '</div>';
+    kpis.appendChild(d);
+  }
+  kpiCard('Orçamento total', totMeta, myLabel(mesRef), 'kpi-receitas');
+  kpiCard('Gasto total', totGasto, totPct + '% do orçamento usado', 'kpi-despesas');
+  var restCls = totRest >= 0 ? '' : 'kpi-despesas';
+  kpiCard(totRest >= 0 ? 'Saldo disponível' : 'Estourou em', Math.abs(totRest), totRest >= 0 ? '✓ dentro do orçamento' : '⚠ acima do planejado', restCls);
+
+  /* Cards por categoria */
+  cats.sort().forEach(function(cat){
+    var meta  = metas[cat];
+    var gasto = gastos[cat] || 0;
+    var rest  = meta - gasto;
+    var pct   = meta > 0 ? Math.min(gasto / meta * 100, 100) : 0;
+    var rawPct = meta > 0 ? Math.round(gasto / meta * 100) : 0;
+    var st    = orcStatus(rawPct);
+    var clr   = CAT_COLORS[cat] || '#B4B2A9';
+
+    var card = document.createElement('div');
+    card.className = 'orc-card';
+    card.innerHTML =
+      '<div class="orc-card-head">' +
+        '<div class="orc-cat-name">' +
+          '<div class="orc-dot" style="background:' + clr + '"></div>' +
+          cat +
+        '</div>' +
+        '<span class="orc-badge ' + st + '">' + orcLabel(rawPct) + '</span>' +
+      '</div>' +
+      '<div class="orc-values">' +
+        '<span class="orc-spent' + (rawPct >= 100 ? ' over' : '') + '">' + brl(gasto) + '</span>' +
+        '<span>de <span class="orc-meta-val">' + brl(meta) + '</span></span>' +
+      '</div>' +
+      '<div class="orc-bar-wrap">' +
+        '<div class="orc-bar-fill ' + st + '" style="width:' + pct.toFixed(1) + '%"></div>' +
+      '</div>' +
+      '<div class="orc-footer">' +
+        '<span>' + rawPct + '% usado</span>' +
+        '<span class="orc-rest ' + (rest >= 0 ? 'pos' : 'neg') + '">' +
+          (rest >= 0 ? 'Sobra ' : 'Excede ') + brl(Math.abs(rest)) +
+        '</span>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+
+  /* Card de meta de poupança (se existir) */
+  if (metaPoupanca > 0) {
+    var poupReal = allData.filter(function(r){
+      return r['Tipo'] === 'Poupança' && myKey(r['Data da compra']) === mesRef;
+    }).reduce(function(s, r){ return s + pv(r['Valor (R$)']); }, 0);
+    var poupPct = Math.round(poupReal / metaPoupanca * 100);
+    var poupSt  = orcStatus(100 - poupPct);  /* invertido: menos é pior */
+    var poupStDisplay = poupReal >= metaPoupanca ? 'ok' : poupPct >= 50 ? 'warn' : 'over';
+    var poupLabel = poupReal >= metaPoupanca ? '✓ Meta atingida' : poupPct + '% da meta';
+
+    var pcard = document.createElement('div');
+    pcard.className = 'orc-card';
+    pcard.style.borderColor = 'var(--c-amb-bdr)';
+    pcard.innerHTML =
+      '<div class="orc-card-head">' +
+        '<div class="orc-cat-name">' +
+          '<div class="orc-dot" style="background:var(--c-amb-bdr)"></div>' +
+          'Meta de Poupança' +
+        '</div>' +
+        '<span class="orc-badge ' + poupStDisplay + '">' + poupLabel + '</span>' +
+      '</div>' +
+      '<div class="orc-values">' +
+        '<span class="orc-spent">' + brl(poupReal) + '</span>' +
+        '<span>meta <span class="orc-meta-val">' + brl(metaPoupanca) + '</span></span>' +
+      '</div>' +
+      '<div class="orc-bar-wrap">' +
+        '<div class="orc-bar-fill ' + poupStDisplay + '" style="width:' + Math.min(poupPct, 100).toFixed(1) + '%;background:var(--c-amb-bdr)"></div>' +
+      '</div>' +
+      '<div class="orc-footer">' +
+        '<span>' + poupPct + '% poupado</span>' +
+        '<span class="orc-rest ' + (poupReal >= metaPoupanca ? 'pos' : 'neg') + '">' +
+          (poupReal >= metaPoupanca ? '🎯 Atingiu a meta!' : 'Faltam ' + brl(metaPoupanca - poupReal)) +
+        '</span>' +
+      '</div>';
+    grid.appendChild(pcard);
+  }
+}
+
 /* ── Tabs ── */
 function setupTabs(){
   document.querySelectorAll('.tab').forEach(function(tab){
@@ -1167,8 +1526,9 @@ function setupTabs(){
       this.classList.add('active');
       document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
       document.getElementById('page-'+page).classList.add('active');
-      if(page==='analise')renderAnalise();
-      if(page==='dicas')renderDicas();
+      if(page==='analise')   renderAnalise();
+      if(page==='dicas')     renderDicas();
+      if(page==='orcamento') renderOrcamento();
     });
   });
 }
@@ -1187,6 +1547,10 @@ async function init(){
   try{
     allData=await fetchData();
     filteredData=allData;
+    /* Tenta buscar aba Orçamento em paralelo (não bloqueia se falhar) */
+    var orcResult = await fetchOrcamento();
+    orcData = orcResult || [];
+    if (orcData.length) populateOrcMes();
     document.getElementById('stateLoading').style.display='none';
     document.getElementById('mainContent').style.display='flex';
     populateFilters(allData);
