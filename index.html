@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle Financeiro Familiar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════
@@ -749,13 +750,26 @@ tbody tr:hover { background: var(--c-teal-50); }
 
       <!-- Tabela -->
       <div class="card vg-table">
-        <div class="card-title">Últimos lançamentos <span>15 mais recentes</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="card-title" style="margin-bottom:0">Lançamentos <span id="tabelaCount"></span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <select class="filter-select" id="tfTipo" style="min-width:110px;max-width:140px">
+              <option value="">Todos os tipos</option>
+              <option>Receita</option><option>Despesa</option>
+              <option>Poupança</option><option>Investimento</option>
+            </select>
+            <select class="filter-select" id="tfStatus" style="min-width:110px;max-width:140px">
+              <option value="">Todos status</option>
+              <option>Pago</option><option>Pendente</option><option>Agendado</option>
+            </select>
+          </div>
+        </div>
         <div class="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Data</th><th>Responsável</th><th>Descrição</th>
-                <th>Categoria</th><th>Valor</th><th>Status</th>
+                <th>Data</th><th>Tipo</th><th>Responsável</th>
+                <th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th>
               </tr>
             </thead>
             <tbody id="tBody"></tbody>
@@ -767,6 +781,18 @@ tbody tr:hover { background: var(--c-teal-50); }
 
     <!-- ══════════════ ANÁLISE ══════════════ -->
     <div class="page" id="page-analise">
+
+      <!-- Filtros da Análise (independentes dos filtros da VG) -->
+      <div class="filter-bar">
+        <span class="filter-label">Filtrar análise:</span>
+        <select class="filter-select" id="afMes"><option value="">Todos os meses</option></select>
+        <select class="filter-select" id="afResp"><option value="">Todos</option></select>
+        <select class="filter-select" id="afCat"><option value="">Todas categorias</option></select>
+        <select class="filter-select" id="afStatus">
+          <option value="">Todos status</option>
+          <option>Pago</option><option>Pendente</option><option>Agendado</option>
+        </select>
+      </div>
 
       <!-- Linha 1: evolução + resumo -->
       <div class="an-r1">
@@ -818,9 +844,9 @@ tbody tr:hover { background: var(--c-teal-50); }
         <span id="orcFetchNote" style="font-size:11px;color:var(--c-muted);margin-left:4px"></span>
       </div>
 
-      <!-- Aviso se planilha não suporta -->
+      <!-- Aviso de erro ao carregar orçamento -->
       <div id="orcNotice" class="orc-notice" style="display:none">
-        ⚠️ A aba <strong>Orçamento</strong> só pode ser lida em planilhas compartilhadas pelo link (não "Publicadas na Web"). Compartilhe sua planilha como <strong>"Qualquer pessoa com o link pode VER"</strong> e use o ID da URL.
+        ⚠️ Não foi possível carregar a aba <strong>Orçamento</strong>. Verifique se a aba existe na planilha com o nome exato <strong>Orçamento</strong> e se a planilha está compartilhada publicamente.
       </div>
 
       <!-- Grid de categorias -->
@@ -847,8 +873,8 @@ tbody tr:hover { background: var(--c-teal-50); }
         <div class="m-step-title">🔗 2. Cole o link ou ID abaixo</div>
         <label class="field-label">
           Link ou ID da planilha
-          <input class="field-input" type="text" id="inputId" placeholder="Cole aqui...">
-          <span class="field-hint">Ex: docs.google.com/spreadsheets/d/<b>1ABC…</b>/edit</span>
+          <input class="field-input" type="text" id="inputId" placeholder="Cole o link de compartilhamento ou 'Publicar na Web'...">
+          <span class="field-hint">Aceita qualquer link do Google Sheets: compartilhamento, publicação ou só o ID</span>
         </label>
       </div>
       <div id="mError" class="m-error" style="display:none"></div>
@@ -863,7 +889,7 @@ tbody tr:hover { background: var(--c-teal-50); }
 'use strict';
 
 /* ── State ── */
-var allData = [], filteredData = [], orcData = [], charts = {}, sheetId = null;
+var allData = [], filteredData = [], analiseData = [], orcData = [], charts = {}, sheetId = null;
 
 /* ── Color maps ── */
 var CAT_COLORS = {
@@ -898,6 +924,30 @@ function myLabel(k) {
 }
 function dc(k) { if(charts[k]){charts[k].destroy();charts[k]=null;} }
 
+/* ── CSV parser (suporta campos entre aspas com vírgulas internas) ── */
+function csvParse(txt) {
+  var rows = [];
+  var lines = txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  lines.forEach(function(line){
+    if (!line.trim()) return;
+    var row=[], cur='', inQ=false;
+    for (var i=0;i<line.length;i++){
+      var ch=line[i];
+      if (ch==='"'){
+        if (inQ && line[i+1]==='"'){cur+='"';i++;} // aspas escapadas
+        else inQ=!inQ;
+      } else if (ch===',' && !inQ){
+        row.push(cur.trim()); cur='';
+      } else {
+        cur+=ch;
+      }
+    }
+    row.push(cur.trim());
+    rows.push(row);
+  });
+  return rows;
+}
+
 /* ── Sheet helpers ── */
 function csvUrl(id) {
   return id.startsWith('2PACX-')
@@ -913,8 +963,13 @@ function obterIdPlanilha() {
 function extrairId(raw) {
   raw=raw.trim();
   if(!raw.includes('/'))return raw;
-  var m=raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  return m?m[1]:raw;
+  // URL do tipo "Publicar na Web": /d/e/2PACX-.../pub
+  var mp=raw.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
+  if(mp)return mp[1];
+  // URL de compartilhamento normal: /d/ID/
+  var ms=raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if(ms)return ms[1];
+  return raw;
 }
 
 /* ── Modal ── */
@@ -945,23 +1000,28 @@ function trocarPlanilha(){
   document.getElementById('modalOnboard').style.display='flex';
 }
 function mostrarAjuda(){
-  alert('Como encontrar o ID:\n\n1. Abra a planilha no Google Sheets\n2. Copie a URL\n3. O ID está entre /d/ e /edit\n\nExemplo:\ndocs.google.com/spreadsheets/d/1ABC123/edit\n→ ID: 1ABC123\n\nOu use: Arquivo › Publicar na Web › CSV');
+  alert(
+    'Você pode colar qualquer um destes:\n\n' +
+    '① Link de compartilhamento:\ndocs.google.com/spreadsheets/d/1ABC.../edit\n\n' +
+    '② Link "Publicar na Web" (Arquivo › Publicar na Web › CSV):\ndocs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv\n\n' +
+    '③ Só o ID:\n1ABC123... ou 2PACX-...\n\n' +
+    'O sistema extrai o ID automaticamente de qualquer formato.'
+  );
 }
 
 /* ── Fetch CSV ── */
 async function fetchData() {
   var resp=await fetch(csvUrl(sheetId));
   if(!resp.ok)throw new Error('Planilha não encontrada. Verifique o ID e as permissões.');
-  var txt=await resp.text();
-  var lines=txt.split('\n');
-  var headers=lines[0].split(',').map(function(h){return h.trim().replace(/"/g,'');});
+  var rows=csvParse(await resp.text());
+  if(!rows.length)return[];
+  var headers=rows[0];
   var data=[];
-  for(var i=1;i<lines.length;i++){
-    if(!lines[i].trim())continue;
-    var vals=lines[i].split(',').map(function(v){return v.trim().replace(/"/g,'');});
-    if(vals.length<headers.length)continue;
+  for(var i=1;i<rows.length;i++){
+    var vals=rows[i];
+    if(vals.length<2)continue;
     var row={};
-    headers.forEach(function(h,idx){row[h]=vals[idx];});
+    headers.forEach(function(h,idx){row[h]=vals[idx]||'';});
     if(row['Tipo']&&row['Valor (R$)'])data.push(row);
   }
   return data;
@@ -1105,8 +1165,8 @@ function chartEvolucao() {
 function chartCatBar() {
   dc('catbar');
   var g={};
-  filteredData.filter(function(r){return r['Tipo']==='Despesa'&&r['Categoria'];})
-              .forEach(function(r){var c=r['Categoria'];g[c]=(g[c]||0)+pv(r['Valor (R$)']);});
+  analiseData.filter(function(r){return r['Tipo']==='Despesa'&&r['Categoria'];})
+             .forEach(function(r){var c=r['Categoria'];g[c]=(g[c]||0)+pv(r['Valor (R$)']);});
   var sorted=Object.keys(g).sort(function(a,b){return g[b]-g[a];});
   var val=sorted.map(function(l){return g[l];});
   var clr=sorted.map(function(l){return CAT_COLORS[l]||'#B4B2A9';});
@@ -1131,8 +1191,8 @@ function chartCatBar() {
 function chartForma() {
   dc('forma');
   var g={};
-  filteredData.filter(function(r){return r['Tipo']==='Despesa'&&r['Forma de pagamento'];})
-              .forEach(function(r){var f=r['Forma de pagamento'];g[f]=(g[f]||0)+pv(r['Valor (R$)']);});
+  analiseData.filter(function(r){return r['Tipo']==='Despesa'&&r['Forma de pagamento'];})
+             .forEach(function(r){var f=r['Forma de pagamento'];g[f]=(g[f]||0)+pv(r['Valor (R$)']);});
   var lbl=Object.keys(g),val=lbl.map(function(l){return g[l];}),clr=lbl.map(function(l){return FORMA_COLORS[l]||'#B4B2A9';});
   if(!lbl.length)return;
   charts.forma=new Chart(document.getElementById('cForma').getContext('2d'),{
@@ -1150,19 +1210,41 @@ function chartForma() {
   });
 }
 
+/* ── Tipo badge ── */
+var TIPO_BADGE = {
+  'Receita':     'background:#E1F5EE;color:#085041',
+  'Despesa':     'background:#FCEBEB;color:#791F1F',
+  'Poupança':    'background:#FAEEDA;color:#633806',
+  'Investimento':'background:#EEEDFE;color:#3C3489'
+};
+
 /* ── Tabela ── */
 function renderTable(data) {
-  var tb=document.getElementById('tBody');tb.innerHTML='';
-  var rows=data.slice(0,15);
+  var tfTipo   = document.getElementById('tfTipo').value;
+  var tfStatus = document.getElementById('tfStatus').value;
+  var tb = document.getElementById('tBody'); tb.innerHTML='';
+
+  var rows = data.filter(function(r){
+    if(tfTipo   && r['Tipo']!==tfTipo)     return false;
+    if(tfStatus && r['Status']!==tfStatus) return false;
+    return true;
+  });
+
+  var count = document.getElementById('tabelaCount');
+  if(count) count.textContent = '(' + rows.length + ' registros)';
+
   if(!rows.length){
-    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--c-muted)">Nenhum lançamento encontrado</td></tr>';return;
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--c-muted)">Nenhum lançamento encontrado</td></tr>';return;
   }
-  rows.forEach(function(r){
+  rows.slice(0,20).forEach(function(r){
     var st=r['Status']||'';
     var bc=st==='Pago'?'b-pago':st==='Pendente'?'b-pendente':'b-agendado';
+    var tipo=r['Tipo']||'';
+    var tipoStyle=TIPO_BADGE[tipo]||'background:#eee;color:#555';
     var tr=document.createElement('tr');
     tr.innerHTML=
       '<td>'+(r['Data da compra']||'—')+'</td>'+
+      '<td><span class="badge" style="'+tipoStyle+'">'+( tipo||'—')+'</span></td>'+
       '<td>'+(r['Responsável']||'—')+'</td>'+
       '<td title="'+(r['Descrição']||'')+'">'+(r['Descrição']||'—')+'</td>'+
       '<td>'+(r['Categoria']||'—')+'</td>'+
@@ -1172,11 +1254,17 @@ function renderTable(data) {
   });
 }
 
+function setupTableFilters(){
+  ['tfTipo','tfStatus'].forEach(function(id){
+    document.getElementById(id).addEventListener('change',function(){ renderTable(filteredData); });
+  });
+}
+
 /* ── Resumo por pessoa ── */
 function renderResumoPessoa() {
   var box=document.getElementById('resumoPessoa');box.innerHTML='';
   var por={};
-  filteredData.forEach(function(r){
+  analiseData.forEach(function(r){
     var p=r['Responsável'];if(!p)return;
     if(!por[p])por[p]={rec:0,desp:0};
     var v=pv(r['Valor (R$)']);
@@ -1202,7 +1290,7 @@ function renderResumoPessoa() {
 /* ── Top gastos ── */
 function renderTopGastos() {
   var box=document.getElementById('topGastos');box.innerHTML='';
-  var desps=filteredData.filter(function(r){return r['Tipo']==='Despesa';});
+  var desps=analiseData.filter(function(r){return r['Tipo']==='Despesa';});
   desps.sort(function(a,b){return pv(b['Valor (R$)'])-pv(a['Valor (R$)']);});
   var top=desps.slice(0,5);
   if(!top.length){box.innerHTML='<div style="color:var(--c-muted);font-size:12px;text-align:center;padding:16px">Sem despesas</div>';return;}
@@ -1299,37 +1387,82 @@ function renderVisaoGeral(){
   chartPessoa(filteredData);
   renderTable(filteredData);
 }
-function renderAnalise(){
-  chartEvolucao();
-  renderResumoPessoa();
+/* ── Filtros da Análise ── */
+function populateAnaliseFilters(){
+  var meses=[],resps=[],cats=[],mS={},rS={},cS={};
+  allData.forEach(function(r){
+    var k=myKey(r['Data da compra']);
+    if(k&&!mS[k]){mS[k]=1;meses.push(k);}
+    if(r['Responsável']&&!rS[r['Responsável']]){rS[r['Responsável']]=1;resps.push(r['Responsável']);}
+    if(r['Categoria']&&!cS[r['Categoria']]){cS[r['Categoria']]=1;cats.push(r['Categoria']);}
+  });
+  meses.sort().reverse();resps.sort();cats.sort();
+  function fill(id,items,isMes){
+    var s=document.getElementById(id);
+    var first=s.options[0].text;
+    s.innerHTML='<option value="">'+first+'</option>';
+    items.forEach(function(v){
+      var o=document.createElement('option');o.value=v;
+      o.textContent=isMes?myLabel(v):v;s.appendChild(o);
+    });
+  }
+  fill('afMes',meses,true);fill('afResp',resps,false);fill('afCat',cats,false);
+}
+
+function applyAnaliseFilters(){
+  var m=document.getElementById('afMes').value;
+  var r=document.getElementById('afResp').value;
+  var c=document.getElementById('afCat').value;
+  var s=document.getElementById('afStatus').value;
+  analiseData=allData.filter(function(row){
+    if(m&&myKey(row['Data da compra'])!==m)return false;
+    if(r&&row['Responsável']!==r)return false;
+    if(c&&row['Categoria']!==c)return false;
+    if(s&&row['Status']!==s)return false;
+    return true;
+  });
+  renderAnaliseCharts();
+}
+
+function renderAnaliseCharts(){
   chartCatBar();
   chartForma();
   renderTopGastos();
+  renderResumoPessoa();
+}
+
+function renderAnalise(){
+  analiseData=allData;
+  chartEvolucao();          /* usa allData — sempre mostra tendência completa */
+  renderAnaliseCharts();
+  /* setup listeners uma única vez */
+  ['afMes','afResp','afCat','afStatus'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.onchange=applyAnaliseFilters;
+  });
 }
 
 /* ════════════════════════════════════════
    ORÇAMENTO
 ════════════════════════════════════════ */
 
-/* Fetch da aba Orçamento via gviz (requer planilha compartilhada por link) */
+/* Fetch da aba Orçamento — suporta planilha publicada (2PACX-) e compartilhada */
 async function fetchOrcamento() {
-  if (sheetId.startsWith('2PACX-')) return null;
-  var url = 'https://docs.google.com/spreadsheets/d/' + sheetId +
-            '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento';
+  var url = sheetId.startsWith('2PACX-')
+    ? 'https://docs.google.com/spreadsheets/d/e/' + sheetId + '/pub?output=csv&sheet=Or%C3%A7amento'
+    : 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento';
   try {
     var resp = await fetch(url);
     if (!resp.ok) return null;
-    var txt  = await resp.text();
-    var lines = txt.split('\n');
-    var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/"/g,''); });
+    var rows = csvParse(await resp.text());
+    if (!rows.length) return null;
+    var headers = rows[0];
     var data = [];
-    for (var i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      var vals = lines[i].split(',').map(function(v){ return v.trim().replace(/"/g,''); });
+    for (var i = 1; i < rows.length; i++) {
+      var vals = rows[i];
       if (vals.length < 2) continue;
       var row = {};
-      headers.forEach(function(h, idx){ row[h] = vals[idx]; });
-      /* precisa ter Categoria e Meta mensal preenchidos */
+      headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
       if (row['Categoria'] && row['Meta mensal (R$)']) data.push(row);
     }
     return data;
@@ -1378,16 +1511,11 @@ function renderOrcamento() {
   var kpis   = document.getElementById('orcKpis');
   var note   = document.getElementById('orcFetchNote');
   grid.innerHTML = ''; kpis.innerHTML = '';
-
-  /* Planilha publicada — sem suporte */
-  if (sheetId.startsWith('2PACX-')) {
-    notice.style.display = 'block'; return;
-  }
   notice.style.display = 'none';
 
   if (!orcData.length) {
-    note.textContent = '⚠ Aba "Orçamento" não encontrada na planilha.';
-    grid.innerHTML = '<div class="orc-empty">Nenhum dado de orçamento encontrado.<br>Verifique se a aba se chama exatamente <strong>Orçamento</strong> e se a coluna <strong>Mês de referência</strong> está no formato MM/AAAA.</div>';
+    notice.style.display = 'block';
+    note.textContent = '';
     return;
   }
   note.textContent = '';
@@ -1554,8 +1682,10 @@ async function init(){
     document.getElementById('stateLoading').style.display='none';
     document.getElementById('mainContent').style.display='flex';
     populateFilters(allData);
+    populateAnaliseFilters();
     renderVisaoGeral();
     setupTabs();
+    setupTableFilters();
     ['fMes','fResp','fCat','fStatus'].forEach(function(id){
       document.getElementById(id).addEventListener('change',applyFilters);
     });
