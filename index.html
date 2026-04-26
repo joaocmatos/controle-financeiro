@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro Familiar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f6fdf9;
+            color: #2C2C2A;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: #085041;
+            color: #E1F5EE;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        header h1 {
+            font-size: 22px;
+            font-weight: 500;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .btn-change {
+            background: rgba(255,255,255,0.15);
+            color: #E1F5EE;
+            border: 0.5px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+        
+        .btn-change:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        
+        .nav-tab {
+            background: #fff;
+            border: 0.5px solid #9FE1CB;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0F6E56;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .nav-tab:hover {
+            background: #E1F5EE;
+        }
+        
+        .nav-tab.active {
+            background: #1D9E75;
+            color: #fff;
+            border-color: #1D9E75;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .kpi-card {
+            background: #E1F5EE;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 0.5px solid #9FE1CB;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        
+        .kpi-card.despesas {
+            background: #FCEBEB;
+            border-color: #F09595;
+        }
+        
+        .kpi-card.poupanca {
+            background: #FAEEDA;
+            border-color: #EF9F27;
+        }
+        
+        .kpi-card.alert {
+            background: #FCEBEB;
+            border-color: #E24B4A;
+        }
+        
+        .kpi-label {
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+            color: #0F6E56;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .kpi-card.despesas .kpi-label,
+        .kpi-card.alert .kpi-label {
+            color: #791F1F;
+        }
+        
+        .kpi-card.poupanca .kpi-label {
+            color: #633806;
+        }
+        
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #085041;
+            position: relative;
+        }
+        
+        .kpi-card.despesas .kpi-value,
+        .kpi-card.alert .kpi-value {
+            color: #791F1F;
+        }
+        
+        .kpi-card.poupanca .kpi-value {
+            color: #633806;
+        }
+        
+        .kpi-subtitle {
+            font-size: 11px;
+            color: #0F6E56;
+            margin-top: 6px;
+            opacity: 0.8;
+        }
+        
+        .filters {
+            background: #fff;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #085041;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            background: #fff;
+            color: #2C2C2A;
+            cursor: pointer;
+        }
+        
+        select:focus {
+            outline: 2px solid #1D9E75;
+            outline-offset: 2px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-card {
+            background: #fff;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .chart-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #085041;
+            margin-bottom: 16px;
+        }
+        
+        .charts-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .alert-box {
+            background: #FCEBEB;
+            border: 0.5px solid #E24B4A;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        
+        .alert-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #791F1F;
+            margin-bottom: 4px;
+        }
+        
+        .alert-text {
+            font-size: 12px;
+            color: #791F1F;
+            line-height: 1.6;
+        }
+        
+        .tip-box {
+            background: #E1F5EE;
+            border: 0.5px solid #5DCAA5;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+        
+        .tip-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #085041;
+            margin-bottom: 6px;
+        }
+        
+        .tip-text {
+            font-size: 12px;
+            color: #0F6E56;
+            line-height: 1.6;
+        }
+        
+        .table-container {
+            background: #fff;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        thead {
+            background: #E1F5EE;
+        }
+        
+        th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 500;
+            color: #0F6E56;
+            letter-spacing: 0.03em;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 0.5px solid #E1F5EE;
+        }
+        
+        tbody tr:nth-child(even) {
+            background: #F6FDF9;
+        }
+        
+        tbody tr:hover {
+            background: #E1F5EE;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        .badge-pago {
+            background: #E1F5EE;
+            color: #085041;
+        }
+        
+        .badge-pendente {
+            background: #FAEEDA;
+            color: #633806;
+        }
+        
+        .badge-agendado {
+            background: #EEEDFE;
+            color: #3C3489;
+        }
+        
+        .progress-bar-container {
+            background: #E1F5EE;
+            border-radius: 8px;
+            height: 32px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        
+        .progress-bar {
+            background: #1D9E75;
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .progress-bar.danger {
+            background: #E24B4A;
+        }
+        
+        .progress-bar.warning {
+            background: #EF9F27;
+        }
+        
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .insight-card {
+            background: #fff;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .insight-icon {
+            font-size: 24px;
+        }
+        
+        .insight-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #085041;
+        }
+        
+        .insight-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1D9E75;
+            margin-bottom: 8px;
+        }
+        
+        .insight-desc {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 80, 65, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(8, 80, 65, 0.3);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #1D9E75 0%, #085041 100%);
+            color: #E1F5EE;
+            padding: 24px;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .modal-subtitle {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .modal-step {
+            margin-bottom: 20px;
+        }
+        
+        .modal-step-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #085041;
+            margin-bottom: 8px;
+        }
+        
+        .modal-step-desc {
+            font-size: 12px;
+            color: #5F5E5A;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 16px;
+        }
+        
+        .input-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #085041;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 0.5px solid #9FE1CB;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background: #F6FDF9;
+        }
+        
+        input[type="text"]:focus {
+            outline: 2px solid #1D9E75;
+            outline-offset: 2px;
+            background: #fff;
+        }
+        
+        input[type="text"].error {
+            border-color: #E24B4A;
+            background: #FCEBEB;
+        }
+        
+        .input-hint {
+            font-size: 11px;
+            color: #888780;
+            margin-top: 4px;
+        }
+        
+        .error-message {
+            background: #FCEBEB;
+            color: #791F1F;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .btn-primary {
+            background: #1D9E75;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #0F6E56;
+        }
+        
+        .btn-primary:disabled {
+            background: #9FE1CB;
+            cursor: not-allowed;
+        }
+        
+        .help-link {
+            text-align: center;
+            margin-top: 16px;
+        }
+        
+        .help-link a {
+            color: #1D9E75;
+            font-size: 12px;
+            text-decoration: none;
+        }
+        
+        .help-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #0F6E56;
+            font-size: 14px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #E1F5EE;
+            border-top-color: #1D9E75;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        
+        .empty-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #085041;
+            margin-bottom: 8px;
+        }
+        
+        .empty-text {
+            font-size: 13px;
+            color: #888780;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid,
+            .charts-grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                text-align: center;
+                flex-direction: column;
+            }
+            
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            select {
+                width: 100%;
+            }
+            
+            .nav-tabs {
+                overflow-x: scroll;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Controle Financeiro Familiar</h1>
+            <div class="header-actions">
+                <span id="familyName" style="font-size: 14px; opacity: 0.9;">Carregando...</span>
+                <button class="btn-change" onclick="trocarPlanilha()">⚙️ Trocar planilha</button>
+            </div>
+        </header>
+        
+        <nav class="nav-tabs">
+            <div class="nav-tab active" onclick="trocarPagina('visao-geral')">📊 Visão Geral</div>
+            <div class="nav-tab" onclick="trocarPagina('analise')">🔍 Análise</div>
+            <div class="nav-tab" onclick="trocarPagina('orcamento')">🎯 Orçamento</div>
+            <div class="nav-tab" onclick="trocarPagina('projecao')">📈 Projeção</div>
+            <div class="nav-tab" onclick="trocarPagina('dicas')">💡 Dicas</div>
+        </nav>
+        
+        <div id="loadingState" class="loading">
+            <div class="loading-spinner"></div>
+            <div style="font-weight: 500; margin-bottom: 8px;">Carregando seus dados...</div>
+            <div style="font-size: 12px; color: #5DCAA5;">Conectando com sua planilha</div>
+        </div>
+        
+        <div id="errorState" style="display: none;">
+            <div class="alert-box">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-content">
+                    <div class="alert-title">Erro ao carregar dados</div>
+                    <div class="alert-text" id="errorMessage"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mainContent" style="display: none;">
+            <!-- VISÃO GERAL -->
+            <div class="page active" id="page-visao-geral">
+                <div id="alertsContainer"></div>
+                
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Receitas</div>
+                        <div class="kpi-value" id="kpiReceitas">R$ 0</div>
+                    </div>
+                    <div class="kpi-card despesas">
+                        <div class="kpi-label">Despesas</div>
+                        <div class="kpi-value" id="kpiDespesas">R$ 0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Saldo</div>
+                        <div class="kpi-value" id="kpiSaldo">R$ 0</div>
+                        <div class="kpi-subtitle" id="kpiSaldoStatus"></div>
+                    </div>
+                    <div class="kpi-card poupanca">
+                        <div class="kpi-label">Poupado</div>
+                        <div class="kpi-value" id="kpiPoupanca">R$ 0</div>
+                    </div>
+                </div>
+                
+                <div class="filters">
+                    <div class="filter-label">Filtros:</div>
+                    <select id="filterMes"><option value="todos">Todos os meses</option></select>
+                    <select id="filterResponsavel"><option value="todos">Todos</option></select>
+                    <select id="filterCategoria"><option value="todos">Todas as categorias</option></select>
+                    <select id="filterStatus">
+                        <option value="todos">Todos os status</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Agendado">Agendado</option>
+                    </select>
+                </div>
+                
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-title">Despesas por categoria</div>
+                        <canvas id="chartCategorias"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">Gastos por pessoa</div>
+                        <canvas id="chartPessoa"></canvas>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <div class="chart-title">Últimos lançamentos</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Responsável</th>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- ANÁLISE -->
+            <div class="page" id="page-analise">
+                <div class="chart-card" style="margin-bottom: 24px;">
+                    <div class="chart-title">📉 Evolução mensal</div>
+                    <canvas id="chartEvolucao"></canvas>
+                </div>
+                
+                <div class="chart-title" style="margin-bottom: 16px;">🔎 Maiores gastos</div>
+                <div id="topGastosContainer"></div>
+                
+                <div class="charts-grid-2" style="margin-top: 24px;">
+                    <div class="chart-card">
+                        <div class="chart-title">Forma de pagamento</div>
+                        <canvas id="chartPagamento"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">Status</div>
+                        <canvas id="chartStatus"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ORÇAMENTO -->
+            <div class="page" id="page-orcamento">
+                <div class="tip-box">
+                    <div class="tip-title">ℹ️ Como funciona o orçamento</div>
+                    <div class="tip-text">Defina metas mensais na aba "Orçamento" da planilha. Aqui você vê se está dentro do planejado.</div>
+                </div>
+                
+                <div class="chart-card" style="margin-bottom: 24px;">
+                    <div class="chart-title">Orçamento vs. Realizado</div>
+                    <canvas id="chartOrcamento"></canvas>
+                </div>
+                
+                <div class="chart-title" style="margin-bottom: 16px;">Progresso por categoria</div>
+                <div id="orcamentoProgressoContainer"></div>
+            </div>
+            
+            <!-- PROJEÇÃO -->
+            <div class="page" id="page-projecao">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Média receitas</div>
+                        <div class="kpi-value" id="mediaReceitas">R$ 0</div>
+                        <div class="kpi-subtitle">Últimos 3 meses</div>
+                    </div>
+                    <div class="kpi-card despesas">
+                        <div class="kpi-label">Média despesas</div>
+                        <div class="kpi-value" id="mediaDespesas">R$ 0</div>
+                        <div class="kpi-subtitle">Últimos 3 meses</div>
+                    </div>
+                    <div class="kpi-card" id="projecaoSaldoCard">
+                        <div class="kpi-label">Projeção mês atual</div>
+                        <div class="kpi-value" id="projecaoSaldo">R$ 0</div>
+                        <div class="kpi-subtitle" id="projecaoStatus"></div>
+                    </div>
+                </div>
+                
+                <div id="despesasPendentesContainer"></div>
+                
+                <div class="insight-grid">
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">📅</div>
+                            <div class="insight-title">Gastos fixos</div>
+                        </div>
+                        <div class="insight-value" id="gastosRecorrentes">R$ 0</div>
+                        <div class="insight-desc">Despesas que repetem todo mês</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">💳</div>
+                            <div class="insight-title">Cartão</div>
+                        </div>
+                        <div class="insight-value" id="gastosCartao">R$ 0</div>
+                        <div class="insight-desc">Total no crédito este mês</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">⏰</div>
+                            <div class="insight-title">Pendentes</div>
+                        </div>
+                        <div class="insight-value" id="contasPendentes">R$ 0</div>
+                        <div class="insight-desc">Falta pagar este mês</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DICAS -->
+            <div class="page" id="page-dicas">
+                <div class="chart-title" style="margin-bottom: 16px;">💡 Dicas personalizadas</div>
+                <div id="dicasContainer"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL -->
+    <div id="modalOnboarding" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Bem-vindo! Vamos conectar</div>
+                <div class="modal-subtitle">Configure 1× e pronto</div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-step">
+                    <div class="modal-step-title">📋 Compartilhe sua planilha</div>
+                    <div class="modal-step-desc">
+                        Clique em <strong>"Compartilhar"</strong> e mude para <strong>"Qualquer pessoa com o link pode VER"</strong>
+                    </div>
+                </div>
+                
+                <div class="modal-step">
+                    <div class="modal-step-title">🔗 Cole o ID ou link</div>
+                    <div class="modal-step-desc">Pode colar o link completo que a gente extrai o ID</div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">ID ou link da planilha</label>
+                    <input type="text" id="inputPlanilhaId" placeholder="Cole aqui...">
+                    <div class="input-hint">Exemplo: docs.google.com/spreadsheets/d/<strong>1ABC123</strong>/edit</div>
+                </div>
+                
+                <div id="modalError" class="error-message" style="display: none;"></div>
+                
+                <button class="btn-primary" id="btnSalvarId" onclick="salvarPlanilhaId()">Salvar</button>
+                
+                <div class="help-link">
+                    <a href="#" onclick="mostrarAjuda(); return false;">❓ Ajuda</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+// Continua no próximo arquivo devido ao limite de tamanho...
+    </script>
+</body>
+</html>
