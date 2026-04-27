@@ -975,14 +975,21 @@ function obterIdPlanilha() {
   return null;
 }
 function extrairId(raw) {
-  raw=raw.trim();
-  if(!raw.includes('/'))return raw;
-  // URL do tipo "Publicar na Web": /d/e/2PACX-.../pub
-  var mp=raw.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
-  if(mp)return mp[1];
-  // URL de compartilhamento normal: /d/ID/
-  var ms=raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if(ms)return ms[1];
+  raw = raw.trim();
+  if (!raw.includes('/')) return raw;
+  
+  // URL "Publicar na Web" (formato: .../d/e/2PACX-.../pub...)
+  var mp = raw.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
+  if (mp) return mp[1];
+  
+  // URL de compartilhamento normal (formato: .../d/ID/edit...)
+  var ms = raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (ms) return ms[1];
+  
+  // Caso o usuário cole apenas o ID que começa com 2PACX mas no meio de um link quebrado
+  var m2 = raw.match(/(2PACX-[a-zA-Z0-9-_]+)/);
+  if (m2) return m2[1];
+
   return raw;
 }
 
@@ -1509,32 +1516,45 @@ function renderAnalise(){
 async function fetchOrcamento() {
   var base2 = 'https://docs.google.com/spreadsheets/d/e/' + sheetId;
   var baseR  = 'https://docs.google.com/spreadsheets/d/' + sheetId;
+  
   /* Lista de URLs a tentar, em ordem de preferência */
   var urls = sheetId.startsWith('2PACX-') ? [
-    base2 + '/pub?output=csv&sheet=Or%C3%A7amento',   /* nome exato com ç */
-    base2 + '/pub?output=csv&sheet=Orcamento',         /* sem acento */
-    base2 + '/pub?output=csv&gid=1',                   /* segunda aba por índice */
-    base2 + '/pub?output=csv&gid=2',                   /* terceira aba por índice */
-    base2 + '/pub?output=csv&gid=1864117621',          /* GID comum para segunda aba */
+    /* Para links "Publicar na Web", o parâmetro sheet= não funciona para CSV.
+       O usuário DEVE publicar o documento inteiro para que o gid funcione,
+       ou publicar cada aba individualmente (o que mudaria o ID).
+       Tentamos o gid=XXXX que é a única forma de acessar abas extras em um pub único. */
+    base2 + '/pub?output=csv&gid=1864117621',
+    base2 + '/pub?output=csv&gid=1',
+    base2 + '/pub?output=csv&gid=2',
+    /* Fallback: tenta o link principal (pode ser que o Orçamento seja a primeira aba) */
+    base2 + '/pub?output=csv'
   ] : [
+    /* Para IDs normais, o endpoint gviz/tq é o mais poderoso e não gera erro 400 no console se a aba não existir */
     baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento',
     baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento',
     baseR + '/export?format=csv&sheet=Or%C3%A7amento',
-    baseR + '/export?format=csv&gid=1',
-    baseR + '/export?format=csv&gid=2',
     baseR + '/export?format=csv&gid=1864117621',
+    baseR + '/export?format=csv&gid=1'
   ];
 
   for (var u = 0; u < urls.length; u++) {
     try {
-      var resp = await fetch(urls[u]);
+      /* Usamos um timeout curto para não travar o app tentando URLs inválidas */
+      var controller = new AbortController();
+      var timeout = setTimeout(() => controller.abort(), 5000);
+
+      var resp = await fetch(urls[u], { signal: controller.signal });
+      clearTimeout(timeout);
+
       if (!resp.ok) continue;
       var txt = await resp.text();
-      if (!txt || txt.length < 20) continue;
+      
+      /* Se o Google retornar um HTML (página de login ou erro) em vez de CSV */
+      if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) continue;
+      
       var rows = csvParse(txt);
       if (rows.length < 2) continue;
 
-      /* Valida que é realmente a aba Orçamento (tem header "Meta" ou "Categoria") */
       var headers = rows[0];
       var hasMeta = headers.some(function(h){ return h.indexOf('Meta') !== -1; });
       var hasCat  = headers.some(function(h){ return h.indexOf('Categoria') !== -1; });
@@ -1548,18 +1568,16 @@ async function fetchOrcamento() {
         var row = {};
         headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
         
-        /* Localiza a chave da meta (pode variar o nome da coluna) */
         var metaKey = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; }) || 
                       headers.find(function(h){ return h.indexOf('Meta') !== -1; });
         
         if (row['Categoria'] && metaKey && row[metaKey]) {
-          /* Normaliza nomes de colunas para o que o render espera */
           if (metaKey !== 'Meta mensal (R$)') row['Meta mensal (R$)'] = row[metaKey];
           data.push(row);
         }
       }
       if (data.length) return data;
-    } catch(_) { /* tenta próxima URL */ }
+    } catch(_) { }
   }
   return null;
 }
