@@ -1019,14 +1019,28 @@ async function refreshData(){
   var btn=document.getElementById('btnReload');
   btn.classList.add('spinning');
   try{
-    allData=await fetchData();
-    filteredData=allData;
-    analiseData=allData;
-    var orcResult=await fetchOrcamento();
-    orcData=orcResult||[];
-    if(orcData.length)populateOrcMes();
+    /* Busca dados das duas abas em paralelo */
+    var results = await Promise.allSettled([
+      fetchData(),
+      fetchOrcamento()
+    ]);
+
+    if (results[0].status === 'fulfilled') {
+      allData = results[0].value;
+      filteredData = allData;
+      analiseData = allData;
+    } else {
+      throw results[0].reason;
+    }
+
+    if (results[1].status === 'fulfilled') {
+      orcData = results[1].value || [];
+      if (orcData.length) populateOrcMes();
+    }
+
     populateFilters(allData);
     populateAnaliseFilters();
+
     /* Re-renderiza a página ativa */
     var activePage=document.querySelector('.page.active');
     if(activePage){
@@ -1501,40 +1515,50 @@ async function fetchOrcamento() {
     base2 + '/pub?output=csv&sheet=Orcamento',         /* sem acento */
     base2 + '/pub?output=csv&gid=1',                   /* segunda aba por índice */
     base2 + '/pub?output=csv&gid=2',                   /* terceira aba por índice */
+    base2 + '/pub?output=csv&gid=1864117621',          /* GID comum para segunda aba */
   ] : [
     baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento',
     baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento',
     baseR + '/export?format=csv&sheet=Or%C3%A7amento',
+    baseR + '/export?format=csv&gid=1',
+    baseR + '/export?format=csv&gid=2',
+    baseR + '/export?format=csv&gid=1864117621',
   ];
 
   for (var u = 0; u < urls.length; u++) {
     try {
       var resp = await fetch(urls[u]);
       if (!resp.ok) continue;
-      var rows = csvParse(await resp.text());
+      var txt = await resp.text();
+      if (!txt || txt.length < 20) continue;
+      var rows = csvParse(txt);
       if (rows.length < 2) continue;
-      /* Valida que é realmente a aba Orçamento (tem header "Meta mensal") */
+
+      /* Valida que é realmente a aba Orçamento (tem header "Meta" ou "Categoria") */
       var headers = rows[0];
       var hasMeta = headers.some(function(h){ return h.indexOf('Meta') !== -1; });
-      if (!hasMeta) continue;
+      var hasCat  = headers.some(function(h){ return h.indexOf('Categoria') !== -1; });
+      
+      if (!hasMeta || !hasCat) continue;
+
       var data = [];
       for (var i = 1; i < rows.length; i++) {
         var vals = rows[i];
         if (vals.length < 2) continue;
         var row = {};
         headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
-        /* aceita qualquer coluna que contenha "Meta" */
-        var metaKey = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; });
-        if (row['Categoria'] && metaKey && row[metaKey]) data.push(row);
-      }
-      if (data.length) {
-        /* normaliza chave da meta para "Meta mensal (R$)" esperado pelo render */
-        var metaKey2 = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; });
-        if (metaKey2 && metaKey2 !== 'Meta mensal (R$)') {
-          data.forEach(function(r){ r['Meta mensal (R$)'] = r[metaKey2]; });
+        
+        /* Localiza a chave da meta (pode variar o nome da coluna) */
+        var metaKey = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; }) || 
+                      headers.find(function(h){ return h.indexOf('Meta') !== -1; });
+        
+        if (row['Categoria'] && metaKey && row[metaKey]) {
+          /* Normaliza nomes de colunas para o que o render espera */
+          if (metaKey !== 'Meta mensal (R$)') row['Meta mensal (R$)'] = row[metaKey];
+          data.push(row);
         }
-        return data;
       }
+      if (data.length) return data;
     } catch(_) { /* tenta próxima URL */ }
   }
   return null;
@@ -1546,6 +1570,14 @@ function populateOrcMes() {
   var meses = [], seen = {};
   orcData.forEach(function(r){
     var m = r['Mês de referência'];
+    if (!m) return;
+    
+    /* Normaliza o mês: se vier como DD/MM/YYYY, vira MM/YYYY */
+    if (m.split('/').length === 3) {
+      m = myKey(m);
+      r['Mês de referência'] = m;
+    }
+    
     if (m && !seen[m]) { seen[m] = 1; meses.push(m); }
   });
   /* ordena MM/AAAA decrescente */
@@ -1744,12 +1776,24 @@ async function init(){
   document.getElementById('mainContent').style.display='none';
   document.getElementById('stateError').style.display='none';
   try{
-    allData=await fetchData();
-    filteredData=allData;
-    /* Tenta buscar aba Orçamento em paralelo (não bloqueia se falhar) */
-    var orcResult = await fetchOrcamento();
-    orcData = orcResult || [];
-    if (orcData.length) populateOrcMes();
+    /* Busca dados das duas abas em paralelo */
+    var results = await Promise.allSettled([
+      fetchData(),
+      fetchOrcamento()
+    ]);
+
+    if (results[0].status === 'fulfilled') {
+      allData = results[0].value;
+      filteredData = allData;
+    } else {
+      throw results[0].reason;
+    }
+
+    if (results[1].status === 'fulfilled') {
+      orcData = results[1].value || [];
+      if (orcData.length) populateOrcMes();
+    }
+
     document.getElementById('stateLoading').style.display='none';
     document.getElementById('mainContent').style.display='flex';
     populateFilters(allData);
