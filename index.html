@@ -892,9 +892,13 @@ tbody tr:hover { background: var(--c-teal-50); }
       <div>
         <div class="m-step-title">🔗 2. Cole o link ou ID abaixo</div>
         <label class="field-label">
-          Link ou ID da planilha
-          <input class="field-input" type="text" id="inputId" placeholder="Cole o link de compartilhamento ou 'Publicar na Web'...">
-          <span class="field-hint">Aceita qualquer link do Google Sheets: compartilhamento, publicação ou só o ID</span>
+          Link ou ID principal (Lançamentos)
+          <input class="field-input" type="text" id="inputId" placeholder="Link de compartilhamento ou 'Publicar na Web'...">
+        </label>
+        <label class="field-label" style="margin-top:12px">
+          Link da aba Orçamento (opcional)
+          <input class="field-input" type="text" id="inputOrcId" placeholder="Se a aba Orçamento não carregar, cole o link dela aqui...">
+          <span class="field-hint">Necessário apenas se você estiver usando 'Publicar na Web' e as abas não carregarem automaticamente.</span>
         </label>
       </div>
       <div id="mError" class="m-error" style="display:none"></div>
@@ -909,7 +913,7 @@ tbody tr:hover { background: var(--c-teal-50); }
 'use strict';
 
 /* ── State ── */
-var allData = [], filteredData = [], analiseData = [], orcData = [], charts = {}, sheetId = null;
+var allData = [], filteredData = [], analiseData = [], orcData = [], charts = {}, sheetId = null, orcId = null;
 
 /* ── Color maps ── */
 var CAT_COLORS = {
@@ -975,8 +979,15 @@ function csvUrl(id) {
     : 'https://docs.google.com/spreadsheets/d/'+id+'/export?format=csv&gid=0';
 }
 function obterIdPlanilha() {
-  var s=localStorage.getItem('planilha_id'); if(s)return s;
-  var u=new URLSearchParams(window.location.search).get('id');
+  var s=localStorage.getItem('planilha_id'); 
+  var o=localStorage.getItem('orcamento_id');
+  if(o) orcId = o;
+  if(s) return s;
+  
+  var params = new URLSearchParams(window.location.search);
+  var u=params.get('id');
+  var uo=params.get('orcId');
+  if(uo) { localStorage.setItem('orcamento_id', uo); orcId = uo; }
   if(u){localStorage.setItem('planilha_id',u);window.history.replaceState({},'',location.pathname);return u;}
   return null;
 }
@@ -1002,26 +1013,37 @@ function extrairId(raw) {
 /* ── Modal ── */
 async function salvarId() {
   var raw=document.getElementById('inputId').value;
+  var rawOrc=document.getElementById('inputOrcId').value;
   var btn=document.getElementById('btnSave');
   var err=document.getElementById('mError');
   err.style.display='none';
-  if(!raw.trim()){err.textContent='Cole o link ou ID da planilha.';err.style.display='block';return;}
+  if(!raw.trim()){err.textContent='Cole o link ou ID da planilha principal.';err.style.display='block';return;}
+  
   var id=extrairId(raw);
+  var idOrc=rawOrc.trim() ? extrairId(rawOrc) : null;
+  
   btn.disabled=true;btn.textContent='Validando...';
   var ok=false;
   try{var r=await fetch(csvUrl(id));ok=r.ok;}catch(_){}
   if(!ok){
-    err.innerHTML='<b>Não foi possível conectar.</b> Verifique se o ID está correto e se a planilha está compartilhada como "Qualquer pessoa com o link pode VER".';
+    err.innerHTML='<b>Não foi possível conectar à planilha principal.</b> Verifique se o ID está correto e se a planilha está compartilhada como "Qualquer pessoa com o link pode VER".';
     err.style.display='block';btn.disabled=false;btn.textContent='Salvar e continuar';return;
   }
-  localStorage.setItem('planilha_id',id);sheetId=id;
+  
+  localStorage.setItem('planilha_id',id); sheetId=id;
+  if(idOrc) { localStorage.setItem('orcamento_id',idOrc); orcId=idOrc; }
+  else { localStorage.removeItem('orcamento_id'); orcId=null; }
+  
   document.getElementById('modalOnboard').style.display='none';
   btn.disabled=false;btn.textContent='Salvar e continuar';
   init();
 }
 function trocarPlanilha(){
-  localStorage.removeItem('planilha_id');sheetId=null;
+  localStorage.removeItem('planilha_id');
+  localStorage.removeItem('orcamento_id');
+  sheetId=null; orcId=null;
   document.getElementById('inputId').value='';
+  document.getElementById('inputOrcId').value='';
   document.getElementById('mError').style.display='none';
   document.getElementById('mainContent').style.display='none';
   document.getElementById('modalOnboard').style.display='flex';
@@ -1068,11 +1090,16 @@ async function refreshData(){
 }
 function mostrarAjuda(){
   alert(
-    'Você pode colar qualquer um destes:\n\n' +
-    '① Link de compartilhamento:\ndocs.google.com/spreadsheets/d/1ABC.../edit\n\n' +
-    '② Link "Publicar na Web" (Arquivo › Publicar na Web › CSV):\ndocs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv\n\n' +
-    '③ Só o ID:\n1ABC123... ou 2PACX-...\n\n' +
-    'O sistema extrai o ID automaticamente de qualquer formato.'
+    'DICA DE OURO: Use o "Link de Compartilhamento" para melhores resultados!\n\n' +
+    'OPÇÃO A (Recomendada): Link de Compartilhamento\n' +
+    '1. Na planilha, clique em "Compartilhar" (canto superior direito).\n' +
+    '2. Mude para "Qualquer pessoa com o link pode ler".\n' +
+    '3. Copie o link da barra de endereços (termina em /edit).\n' +
+    '→ Com este link, todas as abas funcionam automaticamente!\n\n' +
+    'OPÇÃO B: Publicar na Web (CSV)\n' +
+    '1. Arquivo > Compartilhar > Publicar na Web.\n' +
+    '2. Escolha "CSV" e publique.\n' +
+    '3. Se a aba Orçamento não carregar, você precisará publicar especificamente a aba "Orçamento" e colar o link no segundo campo do formulário.'
   );
 }
 
@@ -1520,20 +1547,18 @@ function renderAnalise(){
 
 /* Fetch da aba Orçamento — tenta múltiplos formatos de URL */
 async function fetchOrcamento() {
-  var base2 = 'https://docs.google.com/spreadsheets/d/e/' + sheetId;
-  var baseR  = 'https://docs.google.com/spreadsheets/d/' + sheetId;
+  var idToUse = orcId || sheetId;
+  var base2 = 'https://docs.google.com/spreadsheets/d/e/' + idToUse;
+  var baseR = 'https://docs.google.com/spreadsheets/d/' + idToUse;
   
-  /* Lista de URLs a tentar. 
-     DICA: O link "Publicar na Web" (2PACX) é limitado para múltiplas abas.
-     O ideal é usar o link de compartilhamento normal (/edit). */
   var urls = [];
   
-  if (sheetId.startsWith('2PACX-')) {
-    /* Para links publicados (2PACX), o gviz não funciona. 
-       Temos que tentar gids específicos ou o link principal. */
-    urls.push(base2 + '/pub?output=csv&gid=1');
-    urls.push(base2 + '/pub?output=csv&gid=2');
-    urls.push(base2 + '/pub?output=csv&gid=3');
+  if (idToUse.startsWith('2PACX-')) {
+    /* Para links publicados (2PACX), tentamos variações de gid e o parâmetro single=true */
+    urls.push(base2 + '/pub?output=csv&gid=1&single=true');
+    urls.push(base2 + '/pub?output=csv&gid=2&single=true');
+    urls.push(base2 + '/pub?output=csv&gid=3&single=true');
+    urls.push(base2 + '/pub?output=csv&single=true');
     urls.push(base2 + '/pub?output=csv'); /* Fallback */
   } else {
     /* Tentativas para link de compartilhamento (ID normal) - Muito mais confiável */
@@ -1548,16 +1573,26 @@ async function fetchOrcamento() {
 
   for (var u = 0; u < urls.length; u++) {
     try {
+      console.log('Tentando carregar orçamento de:', urls[u]);
       var resp = await fetch(urls[u]).catch(() => ({ ok: false }));
-      if (!resp.ok) continue;
-      
+      if (!resp.ok) {
+        console.warn('Falha (status ' + (resp.status||'erro') + ') ao acessar:', urls[u]);
+        continue;
+      }
       var txt = await resp.text();
-      if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) continue;
+      if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) {
+        console.warn('Conteúdo inválido ou muito curto recebido de:', urls[u]);
+        continue;
+      }
       
       var rows = csvParse(txt);
-      if (rows.length < 2) continue;
+      if (rows.length < 2) {
+        console.warn('CSV vazio ou sem dados em:', urls[u]);
+        continue;
+      }
 
       var headers = rows[0];
+      console.log('Colunas encontradas na aba:', headers.join(', '));
       
       /* Busca as chaves das colunas de forma flexível */
       var colCat  = headers.find(function(h){ return h.toLowerCase() === 'categoria'; }) ||
