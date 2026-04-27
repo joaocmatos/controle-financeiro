@@ -860,7 +860,13 @@ tbody tr:hover { background: var(--c-teal-50); }
 
       <!-- Aviso de erro ao carregar orçamento -->
       <div id="orcNotice" class="orc-notice" style="display:none">
-        ⚠️ Não foi possível carregar a aba <strong>Orçamento</strong>. Verifique se a aba existe na planilha com o nome exato <strong>Orçamento</strong> e se a planilha está compartilhada publicamente.
+        <p>⚠️ <strong>Não foi possível carregar a aba Orçamento.</strong></p>
+        <ul style="margin:8px 0;padding-left:20px;font-size:13px">
+          <li>Verifique se a aba se chama exatamente <strong>Orçamento</strong>.</li>
+          <li>A aba deve conter as colunas: <strong>Mês de referência</strong>, <strong>Categoria</strong> e <strong>Meta mensal (R$)</strong>.</li>
+          <li>Se estiver usando o link "Publicar na Web", tente usar o <strong>link de compartilhamento normal</strong> (o que termina em <code>/edit</code>).</li>
+          <li>Certifique-se de que a permissão está como <strong>"Qualquer pessoa com o link pode ler"</strong>.</li>
+        </ul>
       </div>
 
       <!-- Grid de categorias -->
@@ -978,15 +984,15 @@ function extrairId(raw) {
   raw = raw.trim();
   if (!raw.includes('/')) return raw;
   
-  // URL "Publicar na Web" (formato: .../d/e/2PACX-.../pub...)
+  // 1. URL "Publicar na Web" (mais comum: /d/e/ID/pub)
   var mp = raw.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
   if (mp) return mp[1];
   
-  // URL de compartilhamento normal (formato: .../d/ID/edit...)
+  // 2. URL de Compartilhamento / Edit (/d/ID/edit)
   var ms = raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
   if (ms) return ms[1];
   
-  // Caso o usuário cole apenas o ID que começa com 2PACX mas no meio de um link quebrado
+  // 3. Qualquer coisa que pareça um ID de publicação
   var m2 = raw.match(/(2PACX-[a-zA-Z0-9-_]+)/);
   if (m2) return m2[1];
 
@@ -1517,49 +1523,56 @@ async function fetchOrcamento() {
   var base2 = 'https://docs.google.com/spreadsheets/d/e/' + sheetId;
   var baseR  = 'https://docs.google.com/spreadsheets/d/' + sheetId;
   
-  /* Lista de URLs a tentar, em ordem de preferência */
-  var urls = sheetId.startsWith('2PACX-') ? [
-    /* Para links "Publicar na Web", o parâmetro sheet= não funciona para CSV.
-       O usuário DEVE publicar o documento inteiro para que o gid funcione,
-       ou publicar cada aba individualmente (o que mudaria o ID).
-       Tentamos o gid=XXXX que é a única forma de acessar abas extras em um pub único. */
-    base2 + '/pub?output=csv&gid=1864117621',
-    base2 + '/pub?output=csv&gid=1',
-    base2 + '/pub?output=csv&gid=2',
-    /* Fallback: tenta o link principal (pode ser que o Orçamento seja a primeira aba) */
-    base2 + '/pub?output=csv'
-  ] : [
-    /* Para IDs normais, o endpoint gviz/tq é o mais poderoso e não gera erro 400 no console se a aba não existir */
-    baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento',
-    baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento',
-    baseR + '/export?format=csv&sheet=Or%C3%A7amento',
-    baseR + '/export?format=csv&gid=1864117621',
-    baseR + '/export?format=csv&gid=1'
-  ];
+  /* Lista de URLs a tentar. 
+     DICA: O link "Publicar na Web" (2PACX) é limitado para múltiplas abas.
+     O ideal é usar o link de compartilhamento normal (/edit). */
+  var urls = [];
+  
+  if (sheetId.startsWith('2PACX-')) {
+    /* Para links publicados (2PACX), o gviz não funciona. 
+       Temos que tentar gids específicos ou o link principal. */
+    urls.push(base2 + '/pub?output=csv&gid=1');
+    urls.push(base2 + '/pub?output=csv&gid=2');
+    urls.push(base2 + '/pub?output=csv&gid=3');
+    urls.push(base2 + '/pub?output=csv'); /* Fallback */
+  } else {
+    /* Tentativas para link de compartilhamento (ID normal) - Muito mais confiável */
+    urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento');
+    urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento');
+    urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=orçamento');
+    urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=orcamento');
+    urls.push(baseR + '/export?format=csv&sheet=Or%C3%A7amento');
+    urls.push(baseR + '/export?format=csv&sheet=Orcamento');
+    urls.push(baseR + '/export?format=csv&gid=1');
+  }
 
   for (var u = 0; u < urls.length; u++) {
     try {
-      /* Usamos um timeout curto para não travar o app tentando URLs inválidas */
-      var controller = new AbortController();
-      var timeout = setTimeout(() => controller.abort(), 5000);
-
-      var resp = await fetch(urls[u], { signal: controller.signal });
-      clearTimeout(timeout);
-
+      var resp = await fetch(urls[u]).catch(() => ({ ok: false }));
       if (!resp.ok) continue;
-      var txt = await resp.text();
       
-      /* Se o Google retornar um HTML (página de login ou erro) em vez de CSV */
+      var txt = await resp.text();
       if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) continue;
       
       var rows = csvParse(txt);
       if (rows.length < 2) continue;
 
       var headers = rows[0];
-      var hasMeta = headers.some(function(h){ return h.indexOf('Meta') !== -1; });
-      var hasCat  = headers.some(function(h){ return h.indexOf('Categoria') !== -1; });
       
-      if (!hasMeta || !hasCat) continue;
+      /* Busca as chaves das colunas de forma flexível */
+      var colCat  = headers.find(function(h){ return h.toLowerCase() === 'categoria'; }) ||
+                    headers.find(function(h){ return h.toLowerCase().indexOf('categoria') !== -1; });
+                    
+      var colMeta = headers.find(function(h){ return h.toLowerCase().indexOf('meta mensal') !== -1; }) || 
+                    headers.find(function(h){ return h.toLowerCase().indexOf('meta') !== -1; });
+                    
+      var colMes  = headers.find(function(h){ return h.toLowerCase().indexOf('mês de referência') !== -1; }) ||
+                    headers.find(function(h){ return h.toLowerCase().indexOf('mês') !== -1; }) ||
+                    headers.find(function(h){ return h.toLowerCase().indexOf('mes') !== -1; }) ||
+                    headers.find(function(h){ return h.toLowerCase().indexOf('referência') !== -1; }) ||
+                    headers.find(function(h){ return h.toLowerCase().indexOf('referencia') !== -1; });
+
+      if (!colCat || !colMeta || !colMes) continue;
 
       var data = [];
       for (var i = 1; i < rows.length; i++) {
@@ -1568,11 +1581,11 @@ async function fetchOrcamento() {
         var row = {};
         headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
         
-        var metaKey = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; }) || 
-                      headers.find(function(h){ return h.indexOf('Meta') !== -1; });
-        
-        if (row['Categoria'] && metaKey && row[metaKey]) {
-          if (metaKey !== 'Meta mensal (R$)') row['Meta mensal (R$)'] = row[metaKey];
+        /* Normaliza nomes das colunas para o resto do app */
+        if (row[colCat] && row[colMeta] && row[colMes]) {
+          row['Categoria'] = row[colCat];
+          row['Meta mensal (R$)'] = row[colMeta];
+          row['Mês de referência'] = row[colMes];
           data.push(row);
         }
       }
