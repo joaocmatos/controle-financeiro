@@ -860,12 +860,12 @@ tbody tr:hover { background: var(--c-teal-50); }
 
       <!-- Aviso de erro ao carregar orçamento -->
       <div id="orcNotice" class="orc-notice" style="display:none">
-        <p>⚠️ <strong>Não foi possível carregar a aba Orçamento.</strong></p>
+        <p>⚠️ <strong>Não foi possível carregar os dados do Orçamento.</strong></p>
         <ul style="margin:8px 0;padding-left:20px;font-size:13px">
           <li>Verifique se a aba se chama exatamente <strong>Orçamento</strong>.</li>
           <li>A aba deve conter as colunas: <strong>Mês de referência</strong>, <strong>Categoria</strong> e <strong>Meta mensal (R$)</strong>.</li>
-          <li>Se estiver usando o link "Publicar na Web", tente usar o <strong>link de compartilhamento normal</strong> (o que termina em <code>/edit</code>).</li>
-          <li>Certifique-se de que a permissão está como <strong>"Qualquer pessoa com o link pode ler"</strong>.</li>
+          <li>Se você publicou a planilha, certifique-se de que a aba "Orçamento" também foi publicada.</li>
+          <li><strong>Dica:</strong> Cole o link específico da aba Orçamento no campo de configuração.</li>
         </ul>
       </div>
 
@@ -913,7 +913,8 @@ tbody tr:hover { background: var(--c-teal-50); }
 'use strict';
 
 /* ── State ── */
-var allData = [], filteredData = [], analiseData = [], orcData = [], charts = {}, sheetId = null, orcId = null;
+var allData = [], filteredData = [], analiseData = [], orcData = [], charts = {}, 
+    sheetId = null, sheetGid = null, orcId = null, orcGid = null;
 
 /* ── Color maps ── */
 var CAT_COLORS = {
@@ -973,41 +974,68 @@ function csvParse(txt) {
 }
 
 /* ── Sheet helpers ── */
-function csvUrl(id) {
-  return id.startsWith('2PACX-')
-    ? 'https://docs.google.com/spreadsheets/d/e/'+id+'/pub?output=csv'
-    : 'https://docs.google.com/spreadsheets/d/'+id+'/export?format=csv&gid=0';
+function csvUrl(id, gid) {
+  if (!id) return '';
+  if (id.startsWith('2PACX-')) {
+    var url = 'https://docs.google.com/spreadsheets/d/e/' + id + '/pub?output=csv';
+    if (gid) url += '&gid=' + gid + '&single=true';
+    return url;
+  } else {
+    // Para links de compartilhamento, gviz/tq costuma ser mais amigável com CORS
+    var url = 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv';
+    if (gid) url += '&gid=' + gid;
+    return url;
+  }
 }
 function obterIdPlanilha() {
-  var s=localStorage.getItem('planilha_id'); 
-  var o=localStorage.getItem('orcamento_id');
-  if(o) orcId = o;
-  if(s) return s;
+  sheetId = localStorage.getItem('planilha_id'); 
+  sheetGid = localStorage.getItem('planilha_gid');
+  orcId = localStorage.getItem('orcamento_id');
+  orcGid = localStorage.getItem('orcamento_gid');
+  
+  if (sheetId) return sheetId;
   
   var params = new URLSearchParams(window.location.search);
-  var u=params.get('id');
-  var uo=params.get('orcId');
-  if(uo) { localStorage.setItem('orcamento_id', uo); orcId = uo; }
-  if(u){localStorage.setItem('planilha_id',u);window.history.replaceState({},'',location.pathname);return u;}
+  var u = params.get('id');
+  var g = params.get('gid');
+  var uo = params.get('orcId');
+  var go = params.get('orcGid');
+  
+  if (u) {
+    localStorage.setItem('planilha_id', u);
+    sheetId = u;
+    if (g) { localStorage.setItem('planilha_gid', g); sheetGid = g; }
+    if (uo) { localStorage.setItem('orcamento_id', uo); orcId = uo; }
+    if (go) { localStorage.setItem('orcamento_gid', go); orcGid = go; }
+    window.history.replaceState({}, '', location.pathname);
+    return sheetId;
+  }
   return null;
 }
 function extrairId(raw) {
-  raw = raw.trim();
-  if (!raw.includes('/')) return raw;
+  raw = (raw || '').trim();
+  var result = { id: raw, gid: null };
+  if (!raw) return result;
+
+  // Tenta extrair GID (suporta ?gid=, &gid= ou #gid=)
+  var mGid = raw.match(/[?&#]gid=([0-9]+)/);
+  if (mGid) result.gid = mGid[1];
+
+  if (!raw.includes('/')) return result;
   
-  // 1. URL "Publicar na Web" (mais comum: /d/e/ID/pub)
+  // 1. URL "Publicar na Web" (mais comum: /d/e/ID/pub ou /d/e/ID/pubhtml)
   var mp = raw.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
-  if (mp) return mp[1];
+  if (mp) { result.id = mp[1]; return result; }
   
   // 2. URL de Compartilhamento / Edit (/d/ID/edit)
   var ms = raw.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (ms) return ms[1];
+  if (ms) { result.id = ms[1]; return result; }
   
   // 3. Qualquer coisa que pareça um ID de publicação
   var m2 = raw.match(/(2PACX-[a-zA-Z0-9-_]+)/);
-  if (m2) return m2[1];
+  if (m2) { result.id = m2[1]; return result; }
 
-  return raw;
+  return result;
 }
 
 /* ── Modal ── */
@@ -1019,20 +1047,33 @@ async function salvarId() {
   err.style.display='none';
   if(!raw.trim()){err.textContent='Cole o link ou ID da planilha principal.';err.style.display='block';return;}
   
-  var id=extrairId(raw);
-  var idOrc=rawOrc.trim() ? extrairId(rawOrc) : null;
+  var infoMain = extrairId(raw);
+  var infoOrc = rawOrc.trim() ? extrairId(rawOrc) : { id: null, gid: null };
   
   btn.disabled=true;btn.textContent='Validando...';
   var ok=false;
-  try{var r=await fetch(csvUrl(id));ok=r.ok;}catch(_){}
+  try{
+    var r=await fetch(csvUrl(infoMain.id, infoMain.gid));
+    ok=r.ok;
+  }catch(_){}
+  
   if(!ok){
-    err.innerHTML='<b>Não foi possível conectar à planilha principal.</b> Verifique se o ID está correto e se a planilha está compartilhada como "Qualquer pessoa com o link pode VER".';
+    err.innerHTML='<b>Não foi possível conectar à planilha principal.</b> Verifique se o link está correto e se a planilha está compartilhada como "Qualquer pessoa com o link pode VER".';
     err.style.display='block';btn.disabled=false;btn.textContent='Salvar e continuar';return;
   }
   
-  localStorage.setItem('planilha_id',id); sheetId=id;
-  if(idOrc) { localStorage.setItem('orcamento_id',idOrc); orcId=idOrc; }
-  else { localStorage.removeItem('orcamento_id'); orcId=null; }
+  localStorage.setItem('planilha_id', infoMain.id); sheetId = infoMain.id;
+  if(infoMain.gid) { localStorage.setItem('planilha_gid', infoMain.gid); sheetGid = infoMain.gid; }
+  else { localStorage.removeItem('planilha_gid'); sheetGid = null; }
+
+  if(infoOrc.id) { 
+    localStorage.setItem('orcamento_id', infoOrc.id); orcId = infoOrc.id; 
+    if(infoOrc.gid) { localStorage.setItem('orcamento_gid', infoOrc.gid); orcGid = infoOrc.gid; }
+    else { localStorage.removeItem('orcamento_gid'); orcGid = null; }
+  } else { 
+    localStorage.removeItem('orcamento_id'); orcId = null;
+    localStorage.removeItem('orcamento_gid'); orcGid = null;
+  }
   
   document.getElementById('modalOnboard').style.display='none';
   btn.disabled=false;btn.textContent='Salvar e continuar';
@@ -1105,20 +1146,65 @@ function mostrarAjuda(){
 
 /* ── Fetch CSV ── */
 async function fetchData() {
-  var resp=await fetch(csvUrl(sheetId));
-  if(!resp.ok)throw new Error('Planilha não encontrada. Verifique o ID e as permissões.');
-  var rows=csvParse(await resp.text());
-  if(!rows.length)return[];
-  var headers=rows[0];
-  var data=[];
-  for(var i=1;i<rows.length;i++){
-    var vals=rows[i];
-    if(vals.length<2)continue;
-    var row={};
-    headers.forEach(function(h,idx){row[h]=vals[idx]||'';});
-    if(row['Tipo']&&row['Valor (R$)'])data.push(row);
+  var url = csvUrl(sheetId, sheetGid);
+  var urls = [url];
+  
+  // Se for 2PACX e não tiver GID, tenta fallbacks
+  if (sheetId.startsWith('2PACX-') && !sheetGid) {
+    var base = 'https://docs.google.com/spreadsheets/d/e/' + sheetId;
+    urls.push(base + '/pub?output=csv&gid=0&single=true');
+    urls.push(base + '/pub?output=csv&single=true');
   }
-  return data;
+
+  for (var u = 0; u < urls.length; u++) {
+    try {
+      console.log('Buscando dados de Lançamentos:', urls[u]);
+      var resp = await fetch(urls[u]).catch(() => ({ ok: false }));
+      if (!resp.ok) continue;
+      
+      var text = await resp.text();
+      if (!text || text.includes('<!DOCTYPE html>') || text.length < 20) continue;
+      
+      var rows = csvParse(text);
+      if (rows.length < 2) continue;
+      
+      var headers = rows[0];
+      // Busca colunas obrigatórias de forma flexível
+      var colTipo = headers.find(h => h.toLowerCase() === 'tipo');
+      var colValor = headers.find(h => h.toLowerCase().includes('valor'));
+      var colData = headers.find(h => h.toLowerCase().includes('data'));
+
+      if (!colTipo || !colValor) {
+        console.warn('Colunas "Tipo" ou "Valor" não encontradas em:', urls[u]);
+        continue;
+      }
+
+      var data = [];
+      for (var i = 1; i < rows.length; i++) {
+        var vals = rows[i];
+        if (vals.length < 2) continue;
+        var row = {};
+        headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
+        
+        // Normaliza colunas essenciais se necessário
+        if (row[colTipo] && row[colValor]) {
+          // Garante que o app encontre 'Tipo', 'Valor (R$)' e 'Data da compra'
+          if (!row['Tipo']) row['Tipo'] = row[colTipo];
+          if (!row['Valor (R$)']) row['Valor (R$)'] = row[colValor];
+          if (colData && !row['Data da compra']) row['Data da compra'] = row[colData];
+          data.push(row);
+        }
+      }
+      
+      if (data.length) {
+        console.log('Lançamentos carregados com sucesso:', data.length, 'registros');
+        return data;
+      }
+    } catch (e) {
+      console.error('Erro ao buscar lançamentos:', e);
+    }
+  }
+  throw new Error('Não foi possível carregar os dados. Verifique se a planilha está compartilhada corretamente como "Qualquer pessoa com o link pode ler".');
 }
 
 /* ── Totals ── */
@@ -1548,51 +1634,52 @@ function renderAnalise(){
 /* Fetch da aba Orçamento — tenta múltiplos formatos de URL */
 async function fetchOrcamento() {
   var idToUse = orcId || sheetId;
-  var base2 = 'https://docs.google.com/spreadsheets/d/e/' + idToUse;
-  var baseR = 'https://docs.google.com/spreadsheets/d/' + idToUse;
+  var gidToUse = orcGid;
   
+  if (!idToUse) return null;
+
   var urls = [];
   
+  // 1. Se o usuário forneceu um GID específico para orçamento, essa é a prioridade máxima
+  if (gidToUse) {
+    urls.push(csvUrl(idToUse, gidToUse));
+  }
+
+  // 2. Fallbacks baseados no tipo de ID
   if (idToUse.startsWith('2PACX-')) {
-    /* Para links publicados (2PACX), tentamos variações de gid e o parâmetro single=true */
-    urls.push(base2 + '/pub?output=csv&gid=1&single=true');
-    urls.push(base2 + '/pub?output=csv&gid=2&single=true');
-    urls.push(base2 + '/pub?output=csv&gid=3&single=true');
+    var base2 = 'https://docs.google.com/spreadsheets/d/e/' + idToUse;
+    /* Se não temos GID, tentamos os mais comuns para 2PACX */
+    if (!gidToUse) {
+      urls.push(base2 + '/pub?output=csv&gid=1&single=true');
+      urls.push(base2 + '/pub?output=csv&gid=2&single=true');
+      urls.push(base2 + '/pub?output=csv&gid=3&single=true');
+    }
     urls.push(base2 + '/pub?output=csv&single=true');
-    urls.push(base2 + '/pub?output=csv'); /* Fallback */
   } else {
-    /* Tentativas para link de compartilhamento (ID normal) - Muito mais confiável */
+    var baseR = 'https://docs.google.com/spreadsheets/d/' + idToUse;
+    /* Para links de compartilhamento, buscar pelo nome da aba é o mais robusto */
     urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento');
     urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento');
     urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=orçamento');
     urls.push(baseR + '/gviz/tq?tqx=out:csv&sheet=orcamento');
-    urls.push(baseR + '/export?format=csv&sheet=Or%C3%A7amento');
-    urls.push(baseR + '/export?format=csv&sheet=Orcamento');
-    urls.push(baseR + '/export?format=csv&gid=1');
+    if (!gidToUse) {
+      urls.push(baseR + '/export?format=csv&gid=1');
+    }
   }
 
   for (var u = 0; u < urls.length; u++) {
     try {
       console.log('Tentando carregar orçamento de:', urls[u]);
       var resp = await fetch(urls[u]).catch(() => ({ ok: false }));
-      if (!resp.ok) {
-        console.warn('Falha (status ' + (resp.status||'erro') + ') ao acessar:', urls[u]);
-        continue;
-      }
+      if (!resp.ok) continue;
+      
       var txt = await resp.text();
-      if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) {
-        console.warn('Conteúdo inválido ou muito curto recebido de:', urls[u]);
-        continue;
-      }
+      if (!txt || txt.includes('<!DOCTYPE html>') || txt.length < 20) continue;
       
       var rows = csvParse(txt);
-      if (rows.length < 2) {
-        console.warn('CSV vazio ou sem dados em:', urls[u]);
-        continue;
-      }
+      if (rows.length < 2) continue;
 
       var headers = rows[0];
-      console.log('Colunas encontradas na aba:', headers.join(', '));
       
       /* Busca as chaves das colunas de forma flexível */
       var colCat  = headers.find(function(h){ return h.toLowerCase() === 'categoria'; }) ||
@@ -1607,7 +1694,10 @@ async function fetchOrcamento() {
                     headers.find(function(h){ return h.toLowerCase().indexOf('referência') !== -1; }) ||
                     headers.find(function(h){ return h.toLowerCase().indexOf('referencia') !== -1; });
 
-      if (!colCat || !colMeta || !colMes) continue;
+      if (!colCat || !colMeta || !colMes) {
+        console.warn('Colunas obrigatórias não encontradas em:', urls[u], 'Headers:', headers);
+        continue;
+      }
 
       var data = [];
       for (var i = 1; i < rows.length; i++) {
@@ -1616,7 +1706,6 @@ async function fetchOrcamento() {
         var row = {};
         headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
         
-        /* Normaliza nomes das colunas para o resto do app */
         if (row[colCat] && row[colMeta] && row[colMes]) {
           row['Categoria'] = row[colCat];
           row['Meta mensal (R$)'] = row[colMeta];
@@ -1624,7 +1713,10 @@ async function fetchOrcamento() {
           data.push(row);
         }
       }
-      if (data.length) return data;
+      if (data.length) {
+        console.log('Orçamento carregado com sucesso de:', urls[u]);
+        return data;
+      }
     } catch(_) { }
   }
   return null;
