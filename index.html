@@ -100,6 +100,19 @@ body {
   white-space: nowrap;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.22); }
+.btn-reload {
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  border: none;
+  padding: 5px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.btn-reload:hover { color: #fff; background: rgba(255,255,255,0.12); }
+.btn-reload.spinning { animation: spin 0.7s linear infinite; pointer-events: none; }
 
 /* ═══════════════════════════════════════
    TABS
@@ -664,6 +677,7 @@ tbody tr:hover { background: var(--c-teal-50); }
     </div>
     <div class="header-right">
       <span class="family-name" id="familyName"></span>
+      <button class="btn-reload" id="btnReload" title="Atualizar dados" onclick="refreshData()">↻</button>
       <button class="btn-ghost" onclick="trocarPlanilha()">⚙️ Trocar</button>
     </div>
   </header>
@@ -671,9 +685,9 @@ tbody tr:hover { background: var(--c-teal-50); }
   <!-- TABS -->
   <nav class="tabs">
     <button class="tab active" data-page="visao-geral">📊 Visão Geral</button>
+    <button class="tab" data-page="orcamento">📋 Orçamento</button>
     <button class="tab" data-page="analise">🔍 Análise</button>
     <button class="tab" data-page="dicas">💡 Dicas</button>
-    <button class="tab" data-page="orcamento">📋 Orçamento</button>
   </nav>
 
   <!-- LOADING -->
@@ -999,6 +1013,32 @@ function trocarPlanilha(){
   document.getElementById('mainContent').style.display='none';
   document.getElementById('modalOnboard').style.display='flex';
 }
+
+async function refreshData(){
+  if(!sheetId)return;
+  var btn=document.getElementById('btnReload');
+  btn.classList.add('spinning');
+  try{
+    allData=await fetchData();
+    filteredData=allData;
+    analiseData=allData;
+    var orcResult=await fetchOrcamento();
+    orcData=orcResult||[];
+    if(orcData.length)populateOrcMes();
+    populateFilters(allData);
+    populateAnaliseFilters();
+    /* Re-renderiza a página ativa */
+    var activePage=document.querySelector('.page.active');
+    if(activePage){
+      var pid=activePage.id.replace('page-','');
+      if(pid==='visao-geral')renderVisaoGeral();
+      else if(pid==='analise'){analiseData=allData;renderAnaliseCharts();chartEvolucao();}
+      else if(pid==='dicas')renderDicas();
+      else if(pid==='orcamento')renderOrcamento();
+    }
+  }catch(e){console.error('Erro ao atualizar:',e);}
+  btn.classList.remove('spinning');
+}
 function mostrarAjuda(){
   alert(
     'Você pode colar qualquer um destes:\n\n' +
@@ -1188,11 +1228,16 @@ function chartCatBar() {
   });
 }
 
+function getForma(r) {
+  /* tolera variações de capitalização na coluna */
+  return r['Forma de pagamento'] || r['Forma de Pagamento'] || r['forma de pagamento'] || '';
+}
+
 function chartForma() {
   dc('forma');
   var g={};
-  analiseData.filter(function(r){return r['Tipo']==='Despesa'&&r['Forma de pagamento'];})
-             .forEach(function(r){var f=r['Forma de pagamento'];g[f]=(g[f]||0)+pv(r['Valor (R$)']);});
+  analiseData.filter(function(r){return r['Tipo']==='Despesa'&&getForma(r);})
+             .forEach(function(r){var f=getForma(r);g[f]=(g[f]||0)+pv(r['Valor (R$)']);});
   var lbl=Object.keys(g),val=lbl.map(function(l){return g[l];}),clr=lbl.map(function(l){return FORMA_COLORS[l]||'#B4B2A9';});
   if(!lbl.length)return;
   charts.forma=new Chart(document.getElementById('cForma').getContext('2d'),{
@@ -1446,27 +1491,53 @@ function renderAnalise(){
    ORÇAMENTO
 ════════════════════════════════════════ */
 
-/* Fetch da aba Orçamento — suporta planilha publicada (2PACX-) e compartilhada */
+/* Fetch da aba Orçamento — tenta múltiplos formatos de URL */
 async function fetchOrcamento() {
-  var url = sheetId.startsWith('2PACX-')
-    ? 'https://docs.google.com/spreadsheets/d/e/' + sheetId + '/pub?output=csv&sheet=Or%C3%A7amento'
-    : 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento';
-  try {
-    var resp = await fetch(url);
-    if (!resp.ok) return null;
-    var rows = csvParse(await resp.text());
-    if (!rows.length) return null;
-    var headers = rows[0];
-    var data = [];
-    for (var i = 1; i < rows.length; i++) {
-      var vals = rows[i];
-      if (vals.length < 2) continue;
-      var row = {};
-      headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
-      if (row['Categoria'] && row['Meta mensal (R$)']) data.push(row);
-    }
-    return data;
-  } catch(_) { return null; }
+  var base2 = 'https://docs.google.com/spreadsheets/d/e/' + sheetId;
+  var baseR  = 'https://docs.google.com/spreadsheets/d/' + sheetId;
+  /* Lista de URLs a tentar, em ordem de preferência */
+  var urls = sheetId.startsWith('2PACX-') ? [
+    base2 + '/pub?output=csv&sheet=Or%C3%A7amento',   /* nome exato com ç */
+    base2 + '/pub?output=csv&sheet=Orcamento',         /* sem acento */
+    base2 + '/pub?output=csv&gid=1',                   /* segunda aba por índice */
+    base2 + '/pub?output=csv&gid=2',                   /* terceira aba por índice */
+  ] : [
+    baseR + '/gviz/tq?tqx=out:csv&sheet=Or%C3%A7amento',
+    baseR + '/gviz/tq?tqx=out:csv&sheet=Orcamento',
+    baseR + '/export?format=csv&sheet=Or%C3%A7amento',
+  ];
+
+  for (var u = 0; u < urls.length; u++) {
+    try {
+      var resp = await fetch(urls[u]);
+      if (!resp.ok) continue;
+      var rows = csvParse(await resp.text());
+      if (rows.length < 2) continue;
+      /* Valida que é realmente a aba Orçamento (tem header "Meta mensal") */
+      var headers = rows[0];
+      var hasMeta = headers.some(function(h){ return h.indexOf('Meta') !== -1; });
+      if (!hasMeta) continue;
+      var data = [];
+      for (var i = 1; i < rows.length; i++) {
+        var vals = rows[i];
+        if (vals.length < 2) continue;
+        var row = {};
+        headers.forEach(function(h, idx){ row[h] = vals[idx]||''; });
+        /* aceita qualquer coluna que contenha "Meta" */
+        var metaKey = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; });
+        if (row['Categoria'] && metaKey && row[metaKey]) data.push(row);
+      }
+      if (data.length) {
+        /* normaliza chave da meta para "Meta mensal (R$)" esperado pelo render */
+        var metaKey2 = headers.find(function(h){ return h.indexOf('Meta mensal') !== -1; });
+        if (metaKey2 && metaKey2 !== 'Meta mensal (R$)') {
+          data.forEach(function(r){ r['Meta mensal (R$)'] = r[metaKey2]; });
+        }
+        return data;
+      }
+    } catch(_) { /* tenta próxima URL */ }
+  }
+  return null;
 }
 
 /* Popular o select de meses disponíveis no orçamento */
